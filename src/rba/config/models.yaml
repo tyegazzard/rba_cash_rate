@@ -1,0 +1,219 @@
+# RBA cash rate prediction — model configurations
+#
+# Each entry defines a model that can be referenced by name from training scripts
+# or notebooks. Hyperparameter `default` is used for single runs;
+# `search_space` is used by the tuner (Optuna or sklearn).
+#
+# Usage:
+#   from rba.config import load_model_config
+#   from rba.models import build_model
+#   cfg = load_model_config('xgboost_classifier')
+#   model = build_model(cfg)
+#
+# Conventions:
+#   - Every model implements the Model protocol in src/rba/models/base.py.
+#   - search_space values follow Optuna distribution conventions
+#     (loguniform, uniform, int, categorical).
+
+# ---------------------------------------------------------------------------
+# Baselines (Phase 6)
+# Always run as a floor to compare ML models against.
+# ---------------------------------------------------------------------------
+majority_class:
+  module: rba.models.baselines
+  class: MajorityClass
+  task: classification
+  default: {}
+  search_space: {}
+
+persistence:
+  module: rba.models.baselines
+  class: Persistence
+  task: classification
+  description: "Predict whatever the previous decision was."
+  default: {}
+  search_space: {}
+
+taylor_rule:
+  module: rba.models.baselines
+  class: TaylorRule
+  task: regression
+  description: "Classic monetary economics rule. Default coefficients first, then fit."
+  default:
+    inflation_target: 2.5
+    inflation_weight: 1.5
+    output_gap_weight: 0.5
+    neutral_rate: 3.0
+    fit_coefficients: false
+  search_space:
+    inflation_weight: { type: uniform, low: 0.5, high: 2.5 }
+    output_gap_weight: { type: uniform, low: 0.0, high: 1.5 }
+
+market_implied:
+  module: rba.models.baselines
+  class: MarketImplied
+  task: classification
+  description: "Use ASX 30-day futures implied probabilities directly."
+  default: {}
+  search_space: {}
+
+# ---------------------------------------------------------------------------
+# Linear models
+# ---------------------------------------------------------------------------
+logistic_regression:
+  module: rba.models.sklearn_wrappers
+  class: LogisticRegressionWrapper
+  task: classification
+  default:
+    penalty: l2
+    C: 1.0
+    class_weight: balanced
+    max_iter: 1000
+    solver: lbfgs
+  search_space:
+    C: { type: loguniform, low: 0.001, high: 100 }
+    penalty: { type: categorical, choices: [l1, l2] }
+
+ordinal_logistic:
+  module: rba.models.ordinal
+  class: OrdinalLogistic
+  task: ordinal
+  description: "Threshold-based ordinal regression via mord."
+  default:
+    alpha: 1.0
+  search_space:
+    alpha: { type: loguniform, low: 0.001, high: 100 }
+
+# ---------------------------------------------------------------------------
+# Tree models
+# ---------------------------------------------------------------------------
+random_forest_classifier:
+  module: rba.models.sklearn_wrappers
+  class: RandomForestClassifierWrapper
+  task: classification
+  default:
+    n_estimators: 500
+    max_depth: null
+    min_samples_leaf: 5
+    class_weight: balanced
+    n_jobs: -1
+  search_space:
+    n_estimators: { type: int, low: 100, high: 1000 }
+    max_depth: { type: int, low: 3, high: 30 }
+    min_samples_leaf: { type: int, low: 1, high: 20 }
+
+xgboost_classifier:
+  module: rba.models.xgb
+  class: XGBClassifierWrapper
+  task: classification
+  default:
+    n_estimators: 500
+    max_depth: 4
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    tree_method: hist
+  search_space:
+    n_estimators: { type: int, low: 100, high: 1500 }
+    max_depth: { type: int, low: 2, high: 10 }
+    learning_rate: { type: loguniform, low: 0.005, high: 0.3 }
+    subsample: { type: uniform, low: 0.5, high: 1.0 }
+    colsample_bytree: { type: uniform, low: 0.5, high: 1.0 }
+    reg_alpha: { type: loguniform, low: 0.0001, high: 10 }
+    reg_lambda: { type: loguniform, low: 0.0001, high: 10 }
+
+lightgbm_classifier:
+  module: rba.models.lgbm
+  class: LightGBMClassifierWrapper
+  task: classification
+  default:
+    n_estimators: 500
+    num_leaves: 31
+    learning_rate: 0.05
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    class_weight: balanced
+  search_space:
+    n_estimators: { type: int, low: 100, high: 1500 }
+    num_leaves: { type: int, low: 8, high: 128 }
+    learning_rate: { type: loguniform, low: 0.005, high: 0.3 }
+    min_data_in_leaf: { type: int, low: 5, high: 50 }
+
+# ---------------------------------------------------------------------------
+# Kernel methods
+# ---------------------------------------------------------------------------
+svm_classifier:
+  module: rba.models.sklearn_wrappers
+  class: SVMClassifierWrapper
+  task: classification
+  default:
+    kernel: rbf
+    C: 1.0
+    gamma: scale
+    class_weight: balanced
+    probability: true
+  search_space:
+    kernel: { type: categorical, choices: [linear, rbf] }
+    C: { type: loguniform, low: 0.01, high: 100 }
+    gamma: { type: loguniform, low: 0.0001, high: 10 }
+
+# ---------------------------------------------------------------------------
+# Neural network
+# ---------------------------------------------------------------------------
+mlp_classifier:
+  module: rba.models.sklearn_wrappers
+  class: MLPClassifierWrapper
+  task: classification
+  default:
+    hidden_layer_sizes: [64, 32]
+    activation: relu
+    alpha: 0.0001
+    learning_rate_init: 0.001
+    max_iter: 300
+    early_stopping: true
+  search_space:
+    hidden_layer_sizes:
+      type: categorical
+      choices: [[32], [64], [64, 32], [128, 64], [128, 64, 32]]
+    alpha: { type: loguniform, low: 0.00001, high: 0.1 }
+    learning_rate_init: { type: loguniform, low: 0.0001, high: 0.01 }
+
+# ---------------------------------------------------------------------------
+# xRFM
+# ---------------------------------------------------------------------------
+xrfm_classifier:
+  module: rba.models.xrfm
+  class: XRFMClassifierWrapper
+  task: classification
+  description: "Recursive feature machine variant from course."
+  default: {}     # fill in after porting course code
+  search_space: {}
+
+# ---------------------------------------------------------------------------
+# Ensembles
+# ---------------------------------------------------------------------------
+voting_ensemble:
+  module: rba.models.ensemble
+  class: VotingEnsemble
+  task: classification
+  default:
+    members: [logistic_regression, xgboost_classifier, lightgbm_classifier]
+    voting: soft
+  search_space: {}
+
+stacking_ensemble:
+  module: rba.models.ensemble
+  class: StackingEnsemble
+  task: classification
+  default:
+    base_models: [logistic_regression, xgboost_classifier, lightgbm_classifier]
+    meta_model: logistic_regression
+  search_space: {}
+
+# ---------------------------------------------------------------------------
+# Run-level defaults
+# ---------------------------------------------------------------------------
+defaults:
+  cv: walk_forward
+  random_seed: 12
+  log_to_mlflow: true

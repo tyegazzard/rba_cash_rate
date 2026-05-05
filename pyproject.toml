@@ -1,6 +1,9 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rba"]
 
 [project]
 name = "rba"
@@ -42,8 +45,8 @@ requires-python = "~=3.11.0"
 
 [tool.ruff]
 line-length = 99
-src = ["rba"]
-include = ["pyproject.toml", "rba/**/*.py"]
+src = ["src"]
+include = ["pyproject.toml", "src/**/*.py", "tests/**/*.py", "streamlit_app/**/*.py"]
 
 [tool.ruff.lint]
 extend-select = ["I"]  # Add import sorting
@@ -56,8 +59,33 @@ force-sort-within-sections = true
 dev = [
     "jupyterlab>=4.5.7",
     "mypy>=1.20.2",
+    "pre-commit>=4.0.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.12",
 ]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests"]
+warn_return_any = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "lightgbm.*",
+    "mlflow.*",
+    "mord.*",
+    "plotly.*",
+    "sentence_transformers.*",
+    "sklearn.*",
+    "streamlit.*",
+    "tqdm.*",
+    "transformers.*",
+    "xgboost.*",
+]
+ignore_missing_imports = true
 

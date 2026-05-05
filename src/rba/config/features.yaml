@@ -1,0 +1,229 @@
+# RBA cash rate prediction — feature configuration
+#
+# Drives the feature pipeline in src/rba/features/build.py.
+# Each section maps to a feature builder module.
+#
+# Conventions:
+#   - All transforms must use only past data (no leakage).
+#   - Lag and rolling windows are expressed in observations of the source series'
+#     native frequency (monthly for ABS macro, daily for markets, etc.).
+#   - Each feature group can be toggled on/off via `enabled: true/false`.
+
+# ---------------------------------------------------------------------------
+# Levels
+# Raw (point-in-time aligned) values of each source column.
+# ---------------------------------------------------------------------------
+levels:
+  enabled: true
+  columns:
+    # Macro
+    - cpi_headline_yoy
+    - cpi_trimmed_mean_yoy
+    - unemployment_rate
+    - wage_price_index_yoy
+    - gdp_yoy
+    - retail_trade_mom_pct          # monthly % change
+    - household_consumption_qoq     # quarterly
+    - household_savings_ratio       # quarterly
+    - housing_credit_growth_yoy     # RBA D2
+    - population_national           # ABS quarterly
+    # Markets
+    - asx_30d_implied_rate          # ASX 30-day interbank cash rate futures
+    - aus_2y_yield
+    - aus_10y_yield
+    - aud_twi
+    - aud_usd
+    - aud_jpy
+    - aud_cny
+    - asx200_close
+    - asx_vix
+    - aus_5y_breakeven_inflation
+    - aus_sovereign_cds_5y
+    - cba_cds_5y
+    - mortgage_to_cash_spread       # avg variable mortgage rate - cash rate
+    # Housing
+    - house_price_sydney
+    - house_price_melbourne
+    - house_price_brisbane
+    - house_price_perth
+    - house_price_adelaide
+    - dwelling_price_index_national # ABS RPPI
+    # Global
+    - us_fed_funds_rate
+    - us_cpi_yoy
+    - vix
+    # Sentiment surveys
+    - westpac_mi_consumer_sentiment
+    - nab_business_conditions
+    - nab_business_confidence
+    # Labour (high-frequency)
+    - aus_payrolls_index            # ABS weekly payrolls
+
+# ---------------------------------------------------------------------------
+# Changes
+# First differences and growth rates.
+# ---------------------------------------------------------------------------
+changes:
+  enabled: true
+  abs_diff:
+    horizons_months: [1, 3, 6, 12]
+    columns:
+      - cpi_headline_yoy
+      - unemployment_rate
+      - aus_10y_yield
+      - household_savings_ratio
+      - westpac_mi_consumer_sentiment
+      - nab_business_conditions
+      - mortgage_to_cash_spread
+  pct_change:
+    horizons_months: [1, 3, 6, 12]
+    columns:
+      - asx200_close
+      - aud_twi
+      - aud_usd
+      - aud_cny
+      - house_price_sydney
+      - house_price_melbourne
+      - house_price_brisbane
+      - house_price_perth
+      - house_price_adelaide
+      - dwelling_price_index_national
+
+# ---------------------------------------------------------------------------
+# Lags
+# Past values of each column at fixed offsets.
+# ---------------------------------------------------------------------------
+lags:
+  enabled: true
+  default_horizons_months: [1, 3, 6, 12]
+  default_horizons_days: [1, 5, 20]
+  monthly_columns:
+    - cpi_headline_yoy
+    - unemployment_rate
+    - wage_price_index_yoy
+    - retail_trade_mom_pct
+    - westpac_mi_consumer_sentiment
+    - nab_business_conditions
+    - nab_business_confidence
+    - housing_credit_growth_yoy
+  daily_columns:
+    - asx_30d_implied_rate
+    - aus_2y_yield
+    - aud_twi
+    - aud_usd
+    - aud_jpy
+    - aud_cny
+    - asx_vix
+    - vix
+    - aus_5y_breakeven_inflation
+    - aus_sovereign_cds_5y
+
+# ---------------------------------------------------------------------------
+# Rolling statistics
+# Past-only windowed statistics. Implemented in features/rolling.py.
+# ---------------------------------------------------------------------------
+rolling:
+  enabled: true
+  windows_months: [3, 6, 12]
+  windows_days: [5, 20, 60]
+  stats: [mean, std, zscore, min, max]
+  monthly_columns:
+    - cpi_headline_yoy
+    - unemployment_rate
+    - westpac_mi_consumer_sentiment
+    - nab_business_conditions
+  daily_columns:
+    - asx200_close
+    - aud_twi
+    - aud_usd
+    - asx_vix
+    - vix
+    - aus_5y_breakeven_inflation
+
+# ---------------------------------------------------------------------------
+# Surprises
+# Realised value minus consensus / RBA's prior forecast. Only used when
+# consensus data is available.
+# ---------------------------------------------------------------------------
+surprises:
+  enabled: false  # turn on once consensus data sourced
+  columns:
+    - cpi_headline_yoy
+    - unemployment_rate
+    - gdp_yoy
+
+# ---------------------------------------------------------------------------
+# Regime indicators
+# Binary or ordinal flags marking structural breaks. Implemented in
+# features/regime.py.
+# ---------------------------------------------------------------------------
+regime:
+  enabled: true
+  governors:
+    - { name: macfarlane, start: "1996-09-18", end: "2006-09-17" }
+    - { name: stevens,    start: "2006-09-18", end: "2016-09-17" }
+    - { name: lowe,       start: "2016-09-18", end: "2023-09-17" }
+    - { name: bullock,    start: "2023-09-18", end: null }
+  events:
+    - { name: gfc,                start: "2007-08-01", end: "2009-12-31" }
+    - { name: covid,              start: "2020-03-01", end: "2022-12-31" }
+    - { name: forward_guidance,   start: "2020-03-01", end: "2021-11-02" }
+  meeting_cadence_change_date: "2024-02-01"  # 11/yr -> 8/yr
+  include_gap_since_last_meeting: true
+
+# ---------------------------------------------------------------------------
+# Text features
+# Implemented in features/text.py. Three escalating tiers.
+# ---------------------------------------------------------------------------
+text:
+  enabled: true
+  documents:
+    - rba_post_meeting_statement
+    - rba_minutes
+    - rba_statement_on_monetary_policy
+    - rba_governor_speeches
+  lexicon:
+    enabled: true
+    lexicons: [loughran_mcdonald, custom_rba_hawk_dove]
+    aggregations: [count, ratio, normalized_count]
+  embeddings:
+    enabled: true
+    model: sentence-transformers/all-MiniLM-L6-v2
+    cache_dir: data/processed/embeddings
+    aggregation: document_mean
+  fine_tuned_sentiment:
+    enabled: false  # stretch goal
+    model: null
+
+# ---------------------------------------------------------------------------
+# Search interest features (Google Trends)
+# Disabled by default: pytrends rate-limits aggressively and the relative
+# indexing requires care to stitch into a consistent long history.
+# ---------------------------------------------------------------------------
+google_trends:
+  enabled: false
+  queries:
+    - "RBA"
+    - "interest rates"
+    - "mortgage stress"
+    - "refinance"
+    - "fixed rate home loan"
+  geo: AU
+  cache_dir: data/processed/google_trends
+
+# ---------------------------------------------------------------------------
+# Target lags
+# Past values of the target itself (e.g. last decision) as a feature.
+# Common in time-series classification.
+# ---------------------------------------------------------------------------
+target_lags:
+  enabled: true
+  horizons_meetings: [1, 2, 3]
+
+# ---------------------------------------------------------------------------
+# Pipeline-level settings
+# ---------------------------------------------------------------------------
+pipeline:
+  drop_rows_with_any_nan: false  # let trees handle NaN; impute for linear models
+  add_is_missing_indicators: true
+  feature_version_hash: null  # populated at build time

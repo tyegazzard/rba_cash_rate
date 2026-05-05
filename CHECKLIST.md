@@ -4,55 +4,54 @@ Progress: 0 / 130 (0%)
 
 ## 1. Problem definition
 
-- [ ] Lock target formulations: 3-class, multi-class with magnitudes, Δrate regression, level regression, ordinal
-- [ ] Confirm forecast horizon: next meeting only
-- [ ] Confirm scope: announcement (primary), surprise vs market (stretch)
-- [ ] Confirm history start: 1993-01 (inflation-targeting era)
-- [ ] Define success metrics per target type (accuracy, F1, log-loss, Brier, hit rate vs market)
-- [ ] Define held-out test window covering ≥1 hike and ≥1 cut cycle
-- [ ] Write project README sketch (problem, approach, success criteria)
+- [x] Lock target formulations: 3-class, multi-class with magnitudes, Δrate regression, level regression, ordinal
+- [x] Confirm forecast horizon: next meeting only
+- [x] Confirm scope: announcement (primary), surprise vs market (stretch)
+- [x] Confirm history start: 1993-01 (inflation-targeting era)
+- [x] Define success metrics per target type (accuracy, F1, log-loss, Brier, hit rate vs market)
+- [x] Define held-out test window covering ≥1 hike and ≥1 cut cycle
 
 ## 2. Repo & environment setup
 
 ### GitHub & local repo
 
-- [ ] Create GitHub repo (public): rba-cash-rate-prediction
-- [ ] Add MIT or Apache 2.0 LICENSE
-- [ ] Add .gitignore (Python + data/raw/* + mlruns/* + .venv + .ipynb_checkpoints)
-- [ ] Clone locally and set up branch protection on main
-- [ ] Add CONTEXT.md to repo root (for Claude Code)
-- [ ] Add README.md skeleton with problem statement and quickstart
+- [x] Create GitHub repo (public): rba-cash-rate-prediction
+- [x] Add MIT or Apache 2.0 LICENSE
+- [x] Add .gitignore (Python + data/raw/* + mlruns/* + .venv + .ipynb_checkpoints)
+- [x] Clone locally and set up branch protection on main
+- [x] Add CONTEXT.md to repo root (for Claude Code)
+- [x] Add README.md skeleton with problem statement and quickstart
 
 ### Cookiecutter scaffold
 
-- [ ] Run cookiecutter-data-science (or ccds) and merge into repo
-- [ ] Adjust folder names to match CONTEXT.md spec
-- [ ] Create src/rba/{data,features,models,validation,viz,config} package skeleton
-- [ ] Create tests/ mirroring src/ structure
-- [ ] Create streamlit_app/ folder with placeholder main.py
+- [x] Run cookiecutter-data-science (or ccds) and merge into repo
+- [x] Adjust folder names to match CONTEXT.md spec
+- [x] Create src/rba/{data,features,models,validation,viz,config} package skeleton
+- [x] Create tests/ mirroring src/ structure
+- [x] Create streamlit_app/ folder with placeholder main.py
 
 ### uv environment
 
-- [ ] Install uv (curl -LsSf https://astral.sh/uv/install.sh | sh)
-- [ ] Run uv init and confirm pyproject.toml created
-- [ ] Pin Python 3.11+ in pyproject.toml
-- [ ] Add core deps: pandas, numpy, scikit-learn, pyarrow, pyyaml
-- [ ] Add ML deps: xgboost, lightgbm, mord
-- [ ] Add NLP deps: sentence-transformers, transformers, torch
-- [ ] Add tracking: mlflow
-- [ ] Add dashboard: streamlit, plotly
-- [ ] Add dev deps: pytest, pytest-cov, ruff, mypy, jupyterlab
-- [ ] Run uv sync and commit uv.lock
-- [ ] Verify uv run pytest works on empty test
+- [x] Install uv (curl -LsSf https://astral.sh/uv/install.sh | sh)
+- [x] Run uv init and confirm pyproject.toml created
+- [x] Pin Python 3.11+ in pyproject.toml
+- [x] Add core deps: pandas, numpy, scikit-learn, pyarrow, pyyaml
+- [x] Add ML deps: xgboost, lightgbm, mord
+- [x] Add NLP deps: sentence-transformers, transformers, torch
+- [x] Add tracking: mlflow
+- [x] Add dashboard: streamlit, plotly
+- [x] Add dev deps: pytest, pytest-cov, ruff, mypy, jupyterlab
+- [x] Run uv sync and commit uv.lock
+- [x] Verify uv run pytest works on empty test
 
 ### Tooling & CI
 
-- [ ] Configure ruff (linting + formatting) in pyproject.toml
-- [ ] Configure mypy (basic strictness)
-- [ ] Add pre-commit hooks (ruff, mypy, pytest)
-- [ ] Add GitHub Actions: lint + tests on push
-- [ ] Set RANDOM_SEED = 42 in src/rba/config/__init__.py
-- [ ] Add MLflow tracking URI config (./mlruns)
+- [x] Configure ruff (linting + formatting) in pyproject.toml
+- [x] Configure mypy (basic strictness)
+- [x] Add pre-commit hooks (ruff, mypy, pytest)
+- [x] Add GitHub Actions: lint + tests on push
+- [x] Set RANDOM_SEED = 12 in src/rba/config/__init__.py
+- [x] Add MLflow tracking URI config (./mlruns)
 
 ## 3. Data collection & EDA
 

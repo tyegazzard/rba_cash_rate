@@ -1,0 +1,89 @@
+# RBA cash rate prediction — target configurations
+#
+# Each target defines:
+#   - kind: classification | regression | ordinal
+#   - description: human-readable summary
+#   - source_columns: which columns from the master frame are needed
+#   - encoding: how to convert source columns into the target y
+#   - classes (classification only): list of class labels in canonical order
+#   - eval_metrics: metrics to compute for this target
+#
+# Usage in code:
+#   from rba.config import load_target_config
+#   cfg = load_target_config('three_class')
+#   y = build_target(master_df, cfg)
+
+three_class:
+  kind: classification
+  description: "Predict whether the RBA hikes, holds, or cuts."
+  source_columns: [rate_change_bps]
+  encoding:
+    rule: sign_of_change
+    # rate_change_bps > 0 -> hike, == 0 -> hold, < 0 -> cut
+  classes: [cut, hold, hike]
+  class_to_int: { cut: -1, hold: 0, hike: 1 }
+  eval_metrics:
+    - accuracy
+    - balanced_accuracy
+    - macro_f1
+    - log_loss
+    - brier_score
+    - confusion_matrix
+
+magnitude_class:
+  kind: classification
+  description: "Predict the discrete change in basis points."
+  source_columns: [rate_change_bps]
+  encoding:
+    rule: discrete_bps
+    bins: [-50, -25, 0, 25, 50]
+    # values outside bin set are dropped or mapped to nearest (decide in build)
+    out_of_bin_strategy: drop
+  classes: [-50, -25, 0, 25, 50]
+  eval_metrics:
+    - accuracy
+    - macro_f1
+    - log_loss
+    - quadratic_weighted_kappa  # respects ordinality of magnitudes
+    - confusion_matrix
+
+ordinal:
+  kind: ordinal
+  description: "Same labels as magnitude_class but modelled as ordinal."
+  source_columns: [rate_change_bps]
+  encoding:
+    rule: discrete_bps
+    bins: [-50, -25, 0, 25, 50]
+    out_of_bin_strategy: drop
+  classes: [-50, -25, 0, 25, 50]
+  eval_metrics:
+    - accuracy
+    - mean_absolute_error
+    - quadratic_weighted_kappa
+    - confusion_matrix
+
+delta_regression:
+  kind: regression
+  description: "Predict the continuous change in basis points."
+  source_columns: [rate_change_bps]
+  encoding:
+    rule: identity
+  eval_metrics:
+    - rmse
+    - mae
+    - r2
+    - directional_accuracy  # sign(pred) == sign(actual)
+
+level_regression:
+  kind: regression
+  description: "Predict the new cash rate level (post-meeting)."
+  source_columns: [new_rate_pct]
+  encoding:
+    rule: identity
+  eval_metrics:
+    - rmse
+    - mae
+    - r2
+
+# Default target used when none specified at the CLI / notebook level.
+default: three_class

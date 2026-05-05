@@ -102,7 +102,7 @@ If you find yourself reaching for `KFold` or `train_test_split(..., shuffle=True
 - Imputation must be wrapped in a `Pipeline` so it's fit per-fold.
 
 ### 5. Reproducibility
-- `RANDOM_SEED = 42` defined in `src/rba/config/__init__.py`; import everywhere.
+- `RANDOM_SEED = 12` defined in `src/rba/config/__init__.py`; import everywhere.
 - All versions pinned in `pyproject.toml` lockfile.
 - Hash raw data on download; record hash + URL + timestamp in `data/raw/<source>/_metadata.json`.
 
@@ -161,7 +161,7 @@ Baselines (`majority`, `persistence`, `taylor_rule`, `market_implied`) implement
 - **Type hints**: required on public functions.
 - **Docstrings**: numpy-style; for any function returning arrays/frames, include a `Shapes` section.
 - **Imports**: absolute (`from rba.features import lags`); grouped (stdlib / third-party / local).
-- **Logging**: `logging` module via `logger = logging.getLogger(__name__)`. Never `print` outside notebooks.
+- **Logging**: `loguru` via `from loguru import logger` (single global logger; sink configured in `src/rba/config/__init__.py`). Never `print` outside notebooks.
 - **Configs**: YAML for experiment configs; runtime constants in `src/rba/config/__init__.py`.
 - **DataFrames**: pandas by default; polars where pandas is the bottleneck, with explicit conversion at module boundaries.
 - **No magic numbers**: name constants in config.
