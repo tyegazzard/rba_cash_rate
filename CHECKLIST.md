@@ -57,10 +57,10 @@ Progress: 0 / 130 (0%)
 
 ### RBA decisions (target)
 
-- [ ] Implement src/rba/data/sources/rba_f11.py — pull cash rate decision history
-- [ ] Validate: every decision has date, prior rate, new rate, change
-- [ ] Cross-check against RBA media releases archive
-- [ ] Hash raw download to data/raw/rba_f11/_metadata.json
+- [x] Implement src/rba/data/sources/rba_f11.py — pull cash rate decision history
+- [x] Validate: every decision has date, prior rate, new rate, change
+- [x] Cross-check against RBA media releases archive
+- [x] Hash raw download to data/raw/rba_f11/_metadata.json
 
 ### Macro features
 

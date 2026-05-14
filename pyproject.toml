@@ -19,11 +19,13 @@ classifiers = [
     "License :: OSI Approved :: MIT License"
 ]
 dependencies = [
+    "beautifulsoup4>=4.14.3",
     "lightgbm>=4.6.0",
     "loguru",
     "mlflow>=1.27.0",
     "mord>=0.7",
     "numpy>=2.4.4",
+    "openpyxl>=3.1.5",
     "pandas>=3.0.2",
     "pip",
     "plotly>=6.7.0",
