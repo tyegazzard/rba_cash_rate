@@ -81,6 +81,18 @@ Every feature value at meeting date `t` must be derivable using only information
 
 Features join on `publication_date <= meeting_date`. If a source doesn't expose publication dates, log it explicitly and approximate conservatively (assume publication delay).
 
+**CPI and Labour Force (LFS)** each have their own algorithmic release-calendar module under `src/rba/data/`:
+
+- `cpi_release_calendar.py` — last Wednesday of the month following the reference quarter (ABS Cat. 6401.0). Keyed by `reference_quarter_end`.
+- `lfs_release_calendar.py` — era-aware rule for ABS Cat. 6202.0 keyed by `reference_month_end`:
+  - 1993 – Dec 2015 reference months: 2nd Thursday of the following month.
+  - Jan 2016 – present reference months: 3rd Thursday of the following month (McCarthy Review change).
+  - Any December reference month: 4th Thursday of the following January (permanent exception, both eras).
+
+The respective source modules (`abs_cpi.py`, `abs_labour_force.py`) merge the calendar onto every observation in their `_attach_publication_dates` helpers. Known public-holiday / rescheduling exceptions go in each calendar's `_OVERRIDES` dict (initially empty for both). Pre-1993 observations are outside both calendars' verification windows and are allowed to retain `NaT` publication_date; the validation guard in each source raises only on unmatched post-1993 rows.
+
+For other ABS series (WPI, GDP, retail, etc.) the fallback is a per-source conservative `observation_date + N days` offset until a similar release-rule module is added. Each source module defines its own offset constant local to that module — do not centralise. Prefer building an algorithmic calendar when the ABS publishes to a documented rule (most series do); only fall back to the flat offset for series with irregular release timing.
+
 ### 2. No random k-fold cross-validation
 This is time-series. Always use:
 - `sklearn.model_selection.TimeSeriesSplit`, OR

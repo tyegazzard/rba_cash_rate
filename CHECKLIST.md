@@ -64,8 +64,8 @@ Progress: 0 / 130 (0%)
 
 ### Macro features
 
-- [ ] Implement ABS CPI source (headline, trimmed mean, weighted median)
-- [ ] Implement ABS labour force source (unemployment, underemployment, participation)
+- [x] Implement ABS CPI source (headline, trimmed mean, weighted median)
+- [x] Implement ABS labour force source (unemployment, underemployment, participation)
 - [ ] Implement ABS wage price index source
 - [ ] Implement ABS GDP source
 - [ ] Implement ABS retail trade source
@@ -96,6 +96,12 @@ Progress: 0 / 130 (0%)
 - [ ] Implement RBA Statement on Monetary Policy scraper
 - [ ] Implement Governor speech scraper
 - [ ] Store full text + metadata (date, type, governor, URL)
+
+### Source orchestration
+
+- [ ] Create `src/rba/data/refresh.py` skeleton (CLI entry point, per-source error handling, logging)
+- [ ] Register `rba.data.sources.rba_f11.fetch` in refresh.py
+- [ ] Register `rba.data.sources.abs_cpi.fetch` in refresh.py
 
 ### EDA notebooks
 
