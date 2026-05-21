@@ -66,8 +66,8 @@ Progress: 0 / 130 (0%)
 
 - [x] Implement ABS CPI source (headline, trimmed mean, weighted median)
 - [x] Implement ABS labour force source (unemployment, underemployment, participation)
-- [ ] Implement ABS wage price index source
-- [ ] Implement ABS GDP source
+- [x] Implement ABS wage price index source
+- [x] Implement ABS GDP source
 - [ ] Implement ABS retail trade source
 - [ ] Implement RBA D1/D2 (credit aggregates) source
 - [ ] Implement housing source (CoreLogic or ABS dwelling prices, building approvals)

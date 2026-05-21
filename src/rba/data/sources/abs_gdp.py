@@ -1,63 +1,83 @@
-"""ABS Consumer Price Index — quarterly, Australia (8-capitals weighted avg).
+"""ABS National Accounts (Cat. 5206.0) — quarterly Australian GDP series.
 
-Pulls headline CPI, trimmed mean, and weighted median **index numbers** from
-the ABS Data API (SDMX-JSON). The three series live across two dataflows:
+Pulls headline real GDP, nominal GDP and real GDP per capita **levels** from
+the ABS Data API (SDMX-JSON). All three series live in the ``ANA_AGG``
+dataflow (Australian National Accounts: Key Aggregates):
 
-============================  ============  ===========================  =============
-Series                        Dataflow      Datakey                      Coverage from
-----------------------------  ------------  ---------------------------  -------------
-Headline CPI (orig)           ``CPI``       ``1.10001.10.50.Q``          1948-Q3
-Trimmed Mean (seas adj)       ``CPI_Q``     ``1.999902.20.50.Q``         1982-Q1
-Weighted Median (seas adj)    ``CPI_Q``     ``1.999903.20.50.Q``         1982-Q1
-============================  ============  ===========================  =============
+================================================  ===========================  =============
+Series                                            Datakey                      Coverage from
+------------------------------------------------  ---------------------------  -------------
+Real GDP (chain volume measure, SA)               ``M1.GPM.20.AUS.Q``          1959-Q3
+Nominal GDP (current prices, SA)                  ``M3.GPM.20.AUS.Q``          1959-Q3
+Real GDP per capita (chain volume measure, SA)    ``M1.GPM_PCA.20.AUS.Q``      1973-Q3
+================================================  ===========================  =============
 
-Datakey order is ``MEASURE.INDEX.TSEST.REGION.FREQ`` for both dataflows.
-``MEASURE=1`` is "index numbers" (the raw level); we deliberately do *not* pull
-the pre-computed ``MEASURE=2`` (% Δ vs prior period) or ``MEASURE=3``
-(% Δ vs same period last year), because the feature layer is the canonical
-place for derived series — pulling raw avoids rounding mismatches and keeps
-all the derivation choices (lag length, smoothing) in one place.
+Datakey order is ``MEASURE.DATA_ITEM.TSEST.REGION.FREQ``. Picks:
 
-Headline is published "original" (un-seasonally-adjusted); the two analytical
-core measures are only published as seasonally-adjusted series by the ABS.
+- ``MEASURE=M1`` — Chain volume measures (real, the headline RBA tracks);
+  ``MEASURE=M3`` — Current prices (nominal).
+- ``DATA_ITEM=GPM`` — Gross domestic product; ``GPM_PCA`` — GDP per capita.
+  We deliberately pull **levels** (the index/dollar series) and let the
+  feature layer derive growth rates, mirroring the convention used by
+  ``abs_cpi`` and ``abs_wpi``. The pre-computed percentage-change measures
+  (``M2`` / ``M4`` / ``M6``) are available but introduce rounding
+  mismatches against any custom YoY/QoQ derivation downstream.
+- ``TSEST=20`` — Seasonally adjusted (the headline series RBA quotes).
+- ``REGION=AUS`` — Australia (national).
+- ``FREQ=Q`` — Quarterly.
 
 Publication-date convention
 ---------------------------
-The ABS Data API does not expose per-release publication dates. Per the ABS
-release calendar, quarterly CPI is published on the **last Wednesday of the
-month following** the reference quarter. ``rba.data.cpi_release_calendar``
-computes this rule algorithmically and is the source of truth for CPI
-publication dates here; this module merges its output onto every parsed
-observation. Known public-holiday exceptions go in that module's ``_OVERRIDES``
-dict — not here.
+The post-2003 ABS GDP release rule "first Wednesday of the third month after
+quarter-end" holds cleanly for recent history (verified against 20 release
+pages 2019-Q2 → 2025-Q4) but **does not** extend back to 1993 — the
+pre-2003 era has irregular weekday slots (Tue/Fri observed), 2-month rather
+than 3-month lags, and 2nd/3rd-Wednesday releases. Publication dates are
+therefore **scraped from the ABS release pages** by
+``rba.data.gdp_release_calendar``, which materialises a CSV at
+``data/external/gdp_release_dates.csv`` with one row per (reference quarter,
+original release date) spanning 1993-Q1 onward (the calendar uses two URL
+patterns: legacy ``/ausstats/`` for 1993-Q1 → 2019-Q1 and modern
+``/statistics/`` for 2019-Q2 onward).
+
+Observations on/after ``_CALENDAR_VALIDATION_FLOOR`` (1993-01-01) MUST match
+the scraped calendar; an unmatched in-window row raises ``ValueError`` —
+that signals a calendar / data mismatch (e.g. the ABS adding a quarter the
+scraper has not refreshed for). Pre-1993 observations (back to 1959-Q3)
+retain ``NaT`` ``publication_date``; downstream code filters to the
+inflation-targeting era anyway and those rows are not in scope for the
+model.
 
 Vintage policy
 --------------
-Values returned by ``fetch()`` are the **current ABS vintage** at the time of
-download — *not* the original first-release value. ABS recomputes seasonal
-adjustment each release and occasionally revises historical observations
-(methodology changes, late source data); we do not reconstruct prior
-vintages. So for any observation that has been revised since first publication,
-the ``value`` in the returned frame is not exactly the number the RBA board
-saw on ``publication_date``. This is a known deviation from strict real-time
-correctness, acknowledged in the project README and discussed under Invariant
-#1 in ``CONTEXT.md``. Bias is light for headline CPI but larger for the SA
-core measures (trimmed mean, weighted median).
+Values returned by ``fetch()`` are the **current ABS vintage** at the time
+of download — *not* the original first-release value. GDP is among the
+most heavily revised major series (chain volume re-referencing, seasonal
+re-estimation, and methodology updates routinely shift historical
+observations); we do not reconstruct prior vintages. For any quarter that
+has been revised since first publication, the ``value`` in the returned
+frame is not exactly the number the RBA board saw on ``publication_date``.
+Acknowledged as a deviation from strict real-time correctness in the
+project README and discussed under Invariant #1 in ``CONTEXT.md``. The
+revision bias is materially larger here than for headline CPI.
 
 Output schema
 -------------
 ``fetch()`` returns a long-format ``pandas.DataFrame`` with columns:
 
 - ``observation_date`` (datetime64[ns]) — end of the reference quarter.
-- ``publication_date`` (datetime64[ns]) — algorithmic ABS release date from
-  ``rba.data.cpi_release_calendar.build_cpi_release_calendar``.
-- ``series_id`` (object) — one of ``headline_cpi_index``,
-  ``trimmed_mean_index``, ``weighted_median_index``.
-- ``value`` (float64) — the index number for that quarter.
+- ``publication_date`` (datetime64[ns]) — scraped original release date
+  from ``rba.data.gdp_release_calendar`` for 1993-Q1 onward; ``NaT`` for
+  earlier quarters.
+- ``series_id`` (object) — one of ``gdp_real_chain_volume_sa``,
+  ``gdp_nominal_current_prices_sa``,
+  ``gdp_per_capita_real_chain_volume_sa``.
+- ``value`` (float64) — the quarterly level (chain-volume index basis for
+  real series, dollars for nominal).
 
 Side effects
 ------------
-``fetch()`` writes under ``data/raw/abs_cpi/``:
+``fetch()`` writes under ``data/raw/abs_gdp/``:
 
 - ``<YYYY-MM-DD>__<series_id>.json`` — verbatim SDMX-JSON bytes per series.
 - ``_metadata.json`` — provenance manifest with one entry per series:
@@ -77,27 +97,27 @@ from loguru import logger
 import pandas as pd
 
 from rba.config import RAW_DATA_DIR
-from rba.data.cpi_release_calendar import build_cpi_release_calendar
+from rba.data.gdp_release_calendar import build_gdp_release_calendar
 
-SOURCE_NAME = "abs_cpi"
+SOURCE_NAME = "abs_gdp"
 API_BASE_URL = "https://data.api.abs.gov.au/rest/data"
 
-# Observations earlier than this date are not validated against the release
-# calendar (the calendar defaults to start_year=1993 and the inflation-targeting
-# era begins here). Pre-1993 rows retain NaN publication_date for downstream
-# code to filter.
+# Floor for "must match scraped calendar". The scraped calendar reaches
+# back to 1993-Q1 (start of inflation targeting), so any GDP observation
+# on/after this date must resolve to a calendar row. Earlier observations
+# (back to 1959-Q3 from the API) retain NaT publication_date.
 _CALENDAR_VALIDATION_FLOOR = pd.Timestamp("1993-01-01")
 
 
 @dataclass(frozen=True)
-class CpiSeries:
-    """A single CPI series we pull, parameterised by dataflow + datakey."""
+class GdpSeries:
+    """A single GDP series, parameterised by dataflow + datakey."""
 
     series_id: str
     dataflow: str
     datakey: str
 
-    def url(self, *, start_period: str = "1948-Q1") -> str:
+    def url(self, *, start_period: str = "1959-Q3") -> str:
         return (
             f"{API_BASE_URL}/{self.dataflow}/{self.datakey}"
             f"?startPeriod={start_period}"
@@ -106,27 +126,27 @@ class CpiSeries:
         )
 
 
-SERIES: tuple[CpiSeries, ...] = (
-    CpiSeries(
-        series_id="headline_cpi_index",
-        dataflow="CPI",
-        datakey="1.10001.10.50.Q",
+SERIES: tuple[GdpSeries, ...] = (
+    GdpSeries(
+        series_id="gdp_real_chain_volume_sa",
+        dataflow="ANA_AGG",
+        datakey="M1.GPM.20.AUS.Q",
     ),
-    CpiSeries(
-        series_id="trimmed_mean_index",
-        dataflow="CPI_Q",
-        datakey="1.999902.20.50.Q",
+    GdpSeries(
+        series_id="gdp_nominal_current_prices_sa",
+        dataflow="ANA_AGG",
+        datakey="M3.GPM.20.AUS.Q",
     ),
-    CpiSeries(
-        series_id="weighted_median_index",
-        dataflow="CPI_Q",
-        datakey="1.999903.20.50.Q",
+    GdpSeries(
+        series_id="gdp_per_capita_real_chain_volume_sa",
+        dataflow="ANA_AGG",
+        datakey="M1.GPM_PCA.20.AUS.Q",
     ),
 )
 
 
-def fetch(*, force_download: bool = True, start_period: str = "1948-Q1") -> pd.DataFrame:
-    """Pull all three quarterly CPI series, persist raw, return long frame.
+def fetch(*, force_download: bool = True, start_period: str = "1959-Q3") -> pd.DataFrame:
+    """Pull all three quarterly GDP series, persist raw, return long frame.
 
     Parameters
     ----------
@@ -136,7 +156,7 @@ def fetch(*, force_download: bool = True, start_period: str = "1948-Q1") -> pd.D
         no snapshot is present.
     start_period
         SDMX period string for ``startPeriod`` (e.g. ``"1993-Q1"``). Default
-        ``"1948-Q1"`` pulls the full ABS history; downstream code restricts
+        ``"1959-Q3"`` covers the full ABS history; downstream code restricts
         to the inflation-targeting era.
 
     Returns
@@ -147,8 +167,8 @@ def fetch(*, force_download: bool = True, start_period: str = "1948-Q1") -> pd.D
 
     Shapes
     ------
-    Returns: (n_obs, 4) where ``n_obs`` ≈ 660 for ``start_period="1948-Q1"``
-    (≈ 310 headline + 176 trimmed + 176 weighted-median observations).
+    Returns: (n_obs, 4) where ``n_obs`` ≈ 742 for ``start_period="1959-Q3"``
+    (266 + 266 + 210 obs across the three series as of 2026-Q1).
     """
     dest_dir = RAW_DATA_DIR / SOURCE_NAME
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -175,16 +195,21 @@ def fetch(*, force_download: bool = True, start_period: str = "1948-Q1") -> pd.D
 
 
 def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
-    """Merge algorithmic CPI release dates onto each observation.
+    """Attach publication dates to every observation.
 
-    Defensively drops any pre-existing ``publication_date`` column before
-    merging so a stale value (e.g. from cached upstream code) cannot leak
-    through. Raises ``ValueError`` if any observation on or after
-    ``_CALENDAR_VALIDATION_FLOOR`` is unmatched — that signals a calendar /
-    data mismatch (e.g. quarter-end falling on a day the calendar didn't emit).
+    Merges in the scraped original release date from
+    ``rba.data.gdp_release_calendar`` for every quarter the calendar covers
+    (1993-Q1 onward). Pre-1993 observations retain ``NaT`` — the
+    inflation-targeting-era cut applied by downstream model code drops
+    them anyway.
+
+    Defensively drops any pre-existing ``publication_date`` column. Raises
+    ``ValueError`` if any in-window observation (on/after
+    ``_CALENDAR_VALIDATION_FLOOR``) is unmatched in the calendar — that
+    signals a calendar / data mismatch.
     """
     df = df.drop(columns=["publication_date"], errors="ignore")
-    calendar_df = build_cpi_release_calendar(start_year=1948)
+    calendar_df = build_gdp_release_calendar()
     merged = df.merge(
         calendar_df.rename(columns={"reference_quarter_end": "observation_date"}),
         on="observation_date",
@@ -192,13 +217,19 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     in_window = merged["observation_date"] >= _CALENDAR_VALIDATION_FLOOR
-    unmatched = merged[in_window & merged["publication_date"].isna()]
-    if not unmatched.empty:
-        sample = unmatched[["observation_date", "series_id"]].head().to_dict("records")
+    unmatched_in_window = merged[in_window & merged["publication_date"].isna()]
+    if not unmatched_in_window.empty:
+        sample = (
+            unmatched_in_window[["observation_date", "series_id"]]
+            .head()
+            .to_dict("records")
+        )
         raise ValueError(
-            f"{len(unmatched)} CPI observation(s) on/after "
+            f"{len(unmatched_in_window)} GDP observation(s) on/after "
             f"{_CALENDAR_VALIDATION_FLOOR.date()} are missing a publication "
-            f"date from the release calendar. Sample: {sample}"
+            f"date from the scraped release calendar. Re-run "
+            f"`python -m rba.data.gdp_release_calendar` to refresh. "
+            f"Sample: {sample}"
         )
 
     return merged[["observation_date", "publication_date", "series_id", "value"]]
@@ -207,7 +238,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
 def _resolve_snapshot(
     dest_dir: Path,
     *,
-    series: CpiSeries,
+    series: GdpSeries,
     start_period: str,
     force_download: bool,
 ) -> tuple[Path, dict[str, object]]:
@@ -216,7 +247,7 @@ def _resolve_snapshot(
     existing = sorted(dest_dir.glob(pattern))
     if existing and not force_download:
         path = existing[-1]
-        logger.info("Reusing existing CPI snapshot at {}", path)
+        logger.info("Reusing existing GDP snapshot at {}", path)
         entry: dict[str, object] = {
             "series_id": series.series_id,
             "dataflow": series.dataflow,
@@ -235,7 +266,7 @@ def _resolve_snapshot(
 def _download(
     dest_dir: Path,
     *,
-    series: CpiSeries,
+    series: GdpSeries,
     start_period: str,
 ) -> tuple[Path, dict[str, object]]:
     """Download one series, save dated snapshot, return path + manifest entry."""
@@ -285,15 +316,15 @@ def _parse(json_bytes: bytes, *, series_id: str) -> pd.DataFrame:
         the index→code mapping for each dimension position (including
         ``TIME_PERIOD``).
     series_id
-        Logical name to stamp on every output row (e.g. ``"headline_cpi_index"``).
+        Logical name to stamp on every output row (e.g.
+        ``"gdp_real_chain_volume_sa"``).
 
     Returns
     -------
     pandas.DataFrame
         Columns: ``observation_date`` (datetime64[ns], end-of-quarter),
         ``series_id`` (object), ``value`` (float64). One row per quarter.
-        Publication dates are attached later by ``_attach_publication_dates``
-        via merge against the algorithmic release calendar.
+        Publication dates are attached later by ``_attach_publication_dates``.
 
     Shapes
     ------
@@ -311,7 +342,7 @@ def _parse(json_bytes: bytes, *, series_id: str) -> pd.DataFrame:
     observations = payload["data"]["dataSets"][0]["observations"]
     rows: list[dict[str, object]] = []
     for key, values in observations.items():
-        # key format: "0:0:0:0:0:7" — one position per observation dimension.
+        # key format: "0:0:0:0:0:N" — 5 series dims + TIME_PERIOD position.
         position = int(key.split(":")[time_index])
         period_str = time_codes[position]
         raw_value = values[0]

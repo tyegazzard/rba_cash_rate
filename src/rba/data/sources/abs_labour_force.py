@@ -46,6 +46,19 @@ This module merges the algorithmic calendar onto every parsed observation in
 verification window for the era rules) are allowed to retain NaN
 ``publication_date``; any unmatched row on/after 1993 raises a ``ValueError``.
 
+Vintage policy
+--------------
+Values returned by ``fetch()`` are the **current ABS vintage** at the time of
+download — *not* the original first-release value. LFS seasonal adjustment
+is recomputed every release and historical observations are revised
+materially (especially for sub-aggregates like underemployment); we do not
+reconstruct prior vintages. So for any month that has been revised since
+first publication, the ``value`` in the returned frame is not exactly the
+number the RBA board saw on ``publication_date``. This is a known deviation
+from strict real-time correctness, acknowledged in the project README and
+discussed under Invariant #1 in ``CONTEXT.md``. The revision bias is larger
+here than for headline CPI.
+
 Output schema
 -------------
 ``fetch()`` returns a long-format ``pandas.DataFrame`` with columns:
