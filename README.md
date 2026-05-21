@@ -26,6 +26,9 @@ Planned mitigations (see [CHECKLIST.md](./CHECKLIST.md)):
 
 For full methodology details see [CONTEXT.md — Invariant #1](./CONTEXT.md).
 
+### Excluded macro series
+ABS Retail Trade (Cat. 8501.0) was considered and **dropped**. The ABS discontinued the release after the Jun 2025 reference month; any model using it for forward predictions would carry a permanently frozen feature whose staleness grows with every meeting. The ABS-designated successor (Monthly Household Spending Indicator) measures a different concept and is not used in v1. See [CONTEXT.md — Excluded series](./CONTEXT.md) for the full rationale.
+
 
 ## Repo Structure TODO
 

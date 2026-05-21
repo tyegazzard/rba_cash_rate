@@ -68,8 +68,8 @@ Progress: 0 / 130 (0%)
 - [x] Implement ABS labour force source (unemployment, underemployment, participation)
 - [x] Implement ABS wage price index source
 - [x] Implement ABS GDP source
-- [ ] Implement ABS retail trade source
-- [ ] Implement RBA D1/D2 (credit aggregates) source
+- [~] ~~Implement ABS retail trade source~~ — **dropped 2026-05-21**. ABS discontinued Cat. 8501.0 (Retail Trade, Australia) after the Jun 2025 reference month. Coverage would be 1982-04 → 2025-06 only, which means every prediction the model makes after Jul 2025 would have a frozen, increasingly stale retail feature — useless for forward decisions. The ABS-designated successor (Monthly Household Spending Indicator, dataflow `HSI_M`) covers a different concept (consumer spending across all channels, not retail-store turnover) and is out of scope for v1. See CONTEXT.md "Excluded series" for details.
+- [x] Implement RBA D1/D2 (credit aggregates) source
 - [ ] Implement housing source (CoreLogic or ABS dwelling prices, building approvals)
 - [ ] Implement business/consumer sentiment (NAB, Westpac-MI)
 - [ ] Implement RBA index of commodity prices source
