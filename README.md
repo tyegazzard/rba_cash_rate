@@ -16,7 +16,7 @@ A machine learning pipeline that predicts RBA target cash rate deicions before e
 ## Limitations
 
 ### Data vintage / revisions
-Macro features (ABS CPI, Labour Force, Wage Price Index, and future ABS sources) use the **current ABS vintage** at the time the source was last downloaded — not the original first-release value. ABS routinely revises historical observations through re-estimated seasonal adjustment, methodology updates, and late source data. The pipeline does not reconstruct prior vintages, so for any revised period, the feature value next to its `publication_date` is not exactly what the RBA board would have seen on that date.
+Macro features (ABS CPI, Labour Force, Wage Price Index, GDP, Building Approvals, Total Value of Dwellings; RBA D1/D2 credit aggregates; RBA E2 household balance-sheet ratios) use the **current ABS / RBA vintage** at the time the source was last downloaded — not the original first-release value. ABS routinely revises historical observations through re-estimated seasonal adjustment, methodology updates, and late source data, and the RBA passes those revisions through to its household-ratio tables. The pipeline does not reconstruct prior vintages, so for any revised period, the feature value next to its `publication_date` is not exactly what the RBA board would have seen on that date.
 
 The bias is light for series with minor revisions (headline CPI) and larger for heavily-revised series (LFS sub-aggregates, GDP). This deviates from strict real-time correctness but is accepted as a known limitation, with the trade-off being a far simpler data pipeline.
 
