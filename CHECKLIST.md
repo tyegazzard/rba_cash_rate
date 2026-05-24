@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 0 / 138 (0%)
+Progress: 45 / 153 (29%)
 
 ## 1. Problem definition
 
@@ -70,25 +70,11 @@ Progress: 0 / 138 (0%)
 - [x] Implement ABS GDP source
 - [~] ~~Implement ABS retail trade source~~ — **dropped 2026-05-21**. ABS discontinued Cat. 8501.0 (Retail Trade, Australia) after the Jun 2025 reference month. Coverage would be 1982-04 → 2025-06 only, which means every prediction the model makes after Jul 2025 would have a frozen, increasingly stale retail feature — useless for forward decisions. The ABS-designated successor (Monthly Household Spending Indicator, dataflow `HSI_M`) covers a different concept (consumer spending across all channels, not retail-store turnover) and is out of scope for v1. See CONTEXT.md "Excluded series" for details.
 - [x] Implement RBA D1/D2 (credit aggregates) source
-- [x] Implement RBA E2 (household balance-sheet ratios) source — see section below for module-level checklist.
+- [x] Implement RBA E2 (household balance-sheet ratios) source — `rba_e2_household_ratios` pulls `BHFDDIT`/`BHFDDIH`/`BHFDDIO` (total / housing / owner-occupier household debt-to-income) from `e2-data.csv`; caches verbatim CSV bytes + `_metadata.json` provenance under `data/raw/rba_e/` and materialises a wide CSV at `data/external/rba_e2_household_ratios.csv`. Ships scraped `rba_e_release_calendar.py` (Wayback CDX + live CSV `Publication date` header, `{rba_page,archive_org,inferred}` source enum) covering ~13% of observations; the rest fall back to a +95-day flat offset (worst observed lag ~92 days — no RBA per-release archive exists). Interest-paid-to-income ratio dropped (removed from E2 Feb 2023; E13 replacement housing-only, post-2009, out of scope for v1). `series_break_indicator` column dropped (no published break list; `BHFDDIO` is pre-spliced by RBA).
 - [x] Implement housing source (CoreLogic or ABS dwelling prices, building approvals) — shipped two modules: `abs_building_approvals` (NSA from ABS BA_GCCSA + SA/trend from RBA H3) and `abs_total_value_dwellings` (TVD value/count/mean + 8-capital medians + transfer counts + legacy RPPI 8-cap index + a derived spliced index with QoQ-boundary validation). Each ships a scraped release calendar with the `source` provenance enum (`abs_page`/`archive_org`/`inferred`). CoreLogic was out of scope (licensed/gated); the user-directed splice replaces RPPI past 2021-Q4 with TVD-mean growth and documents the unstratified-median caveat in the source docstring.
-- [ ] Implement business/consumer sentiment (NAB, Westpac-MI)
+- [x] Implement business/consumer sentiment (NAB, Westpac-MI)
 - [ ] Implement RBA index of commodity prices source
 - [ ] For each: record observation_date AND publication_date
-
-### RBA E2 (household balance-sheet ratios)
-
-- [x] Confirm the E2 spreadsheet structure — CSV-only at `e2-data.csv` (the `e02hist.xls` URL from the brief 404s; `e02hist.xlsx` exists with extra `Notes` sheet but the data matches the CSV exactly).
-- [x] Identify the exact series IDs — `BHFDDIT` (household debt-to-income), `BHFDDIH` (housing debt-to-income), `BHFDDIO` (owner-occupier housing debt-to-income). The brief's `BHFIDR`/`BHFHDR` codes are not in the current E2 table.
-- [x] Drop the interest-paid-to-income ratio — RBA removed the series from E2 in Feb 2023. The E13 replacement (`LPHTICRI`) is housing-only and only covers 2009-Q1 onward; out of scope for v1.
-- [x] Add owner-occupier housing debt-to-income (`BHFDDIO`) — RBA-calculated, pre-spliced across breaks. Useful third leverage ratio.
-- [x] Drop the `series_break_indicator` column — no published E2 break list to populate it; `BHFDDIO` is internally pre-spliced; no in-scope methodology breaks affect the three ratios pulled.
-- [x] Sample ~10 historical release dates — 20 unique (reference_quarter, publication_date) pairs harvested from the Wayback Machine spanning 2014-Q4 → 2025-Q1, plus the live CSV header for 2025-Q4. Releases vary across Fri/Tue/Sat with Christmas pull-backs and Easter push-forwards. No clean algorithmic rule fits.
-- [x] Implement `rba_e_release_calendar.py` — scrapes Wayback CDX for `e2-data.csv` snapshots + reads the live CSV's `Publication date` header. Source enum `{rba_page, archive_org, inferred}` matches existing scraped calendars. Coverage is partial: ~13% of E2 observations have scraped publication dates; the rest fall back to a `+ 95` day flat offset (slightly longer than the worst observed lag of ~92 days) — documented limitation since the RBA does not publish a per-release archive.
-- [x] Implement `rba_e2_household_ratios.py` source module — pulls the three series from `e2-data.csv`, caches verbatim CSV bytes to `data/raw/rba_e/`, writes `_metadata.json` provenance, attaches publication dates via the calendar with flat-offset fallback, exposes a long-format `fetch()` and an `__main__` block that materialises the wide CSV at `data/external/rba_e2_household_ratios.csv` with columns `reference_quarter_end / reference_label / household_debt_to_income / housing_debt_to_income / owner_occupier_housing_debt_to_income / release_date / source`.
-- [x] Write tests mirroring `rba_d` patterns — synthetic-CSV `_parse` tests (extract / drop-null / missing-RBA-ID / empty-series), `_to_quarter_end` parametric, `_attach_publication_dates` scraped + flat-offset + NaT-pre-1993, no-future-leakage invariant (`publication_date > observation_date + 7 days`), `_to_wide` schema + source population, registry assertions, hand-verified known-value sanity for 2025-Q4 / 2014-Q4 / 1995-Q4. Calendar tests cover modern + legacy CSV parsing, latin-1 fallback, materialised-CSV loader, override precedence/extension, and rba_page-precedence-over-archive_org.
-- [x] Update `CONTEXT.md` Invariant #1 with the new calendar entry (`rba_e_release_calendar.py`, source enum) and document the partial-coverage limitation.
-- [x] Update `README.md` data-vintage section to include RBA E2 alongside the existing macro sources.
 
 ### Market data
 
