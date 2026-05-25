@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 45 / 153 (29%)
+Progress: 46 / 153 (30%)
 
 ## 1. Problem definition
 
@@ -73,12 +73,12 @@ Progress: 45 / 153 (29%)
 - [x] Implement RBA E2 (household balance-sheet ratios) source — `rba_e2_household_ratios` pulls `BHFDDIT`/`BHFDDIH`/`BHFDDIO` (total / housing / owner-occupier household debt-to-income) from `e2-data.csv`; caches verbatim CSV bytes + `_metadata.json` provenance under `data/raw/rba_e/` and materialises a wide CSV at `data/external/rba_e2_household_ratios.csv`. Ships scraped `rba_e_release_calendar.py` (Wayback CDX + live CSV `Publication date` header, `{rba_page,archive_org,inferred}` source enum) covering ~13% of observations; the rest fall back to a +95-day flat offset (worst observed lag ~92 days — no RBA per-release archive exists). Interest-paid-to-income ratio dropped (removed from E2 Feb 2023; E13 replacement housing-only, post-2009, out of scope for v1). `series_break_indicator` column dropped (no published break list; `BHFDDIO` is pre-spliced by RBA).
 - [x] Implement housing source (CoreLogic or ABS dwelling prices, building approvals) — shipped two modules: `abs_building_approvals` (NSA from ABS BA_GCCSA + SA/trend from RBA H3) and `abs_total_value_dwellings` (TVD value/count/mean + 8-capital medians + transfer counts + legacy RPPI 8-cap index + a derived spliced index with QoQ-boundary validation). Each ships a scraped release calendar with the `source` provenance enum (`abs_page`/`archive_org`/`inferred`). CoreLogic was out of scope (licensed/gated); the user-directed splice replaces RPPI past 2021-Q4 with TVD-mean growth and documents the unstratified-median caveat in the source docstring.
 - [x] Implement business/consumer sentiment (NAB, Westpac-MI)
-- [ ] Implement RBA index of commodity prices source
-- [ ] For each: record observation_date AND publication_date
+- [x] Implement RBA index of commodity prices source
+- [x] For each: record observation_date AND publication_date
 
 ### Market data
 
-- [ ] Implement ASX 30-day futures source (market-implied cash rate)
+- [x] Implement ASX 30-day futures source (market-implied cash rate) — `asx_ib_futures` pulls the daily implied curve from the `MattCowgill/cash-rate-scraper` GitHub repo (MIT, daily-refreshed `combined_data/all_data.Rds` scraped from the ASX MarkitDigital JSON endpoint the Rate Tracker page consumes — no free direct-from-ASX historical feed exists). Long-format `[observation_date, publication_date, series_id, value]` where `series_id` = `ib_YYYY_MM` (contract expiry month) and `value` = `100 - upstream_cash_rate` (raw settlement price). Publication-date rule is trivial (`publication_date == observation_date`, ~6pm AEST same-day EOD), so no separate release calendar. Coverage 2022-04-21 → present with a documented gap 2022-07-01 → 2022-07-20 (ASX site change); pre-2022 history unavailable from any free source — market-implied baseline evaluable on post-2022 window only. Companion `derive_meeting_implied(long_df, meetings_df, lookback_business_days=1)` joins the curve to the F11 meeting frame and returns the naïve implied rate for the meeting-month contract as of T-1 business day. New dep: `pyreadr`.
 - [ ] Implement Australian Government Bond yields (2y, 5y, 10y)
 - [ ] Implement AUD/USD and AUD TWI source
 - [ ] Implement ASX 200 source (incl. financials sub-index)
