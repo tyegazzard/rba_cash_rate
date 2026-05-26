@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 48 / 153 (31%)
+Progress: 50 / 153 (33%)
 
 ## 1. Problem definition
 
@@ -81,8 +81,8 @@ Progress: 48 / 153 (31%)
 - [x] Implement ASX 30-day futures source (market-implied cash rate) — `asx_ib_futures` pulls the daily implied curve from the `MattCowgill/cash-rate-scraper` GitHub repo (MIT, daily-refreshed `combined_data/all_data.Rds` scraped from the ASX MarkitDigital JSON endpoint the Rate Tracker page consumes — no free direct-from-ASX historical feed exists). Long-format `[observation_date, publication_date, series_id, value]` where `series_id` = `ib_YYYY_MM` (contract expiry month) and `value` = `100 - upstream_cash_rate` (raw settlement price). Publication-date rule is trivial (`publication_date == observation_date`, ~6pm AEST same-day EOD), so no separate release calendar. Coverage 2022-04-21 → present with a documented gap 2022-07-01 → 2022-07-20 (ASX site change); pre-2022 history unavailable from any free source — market-implied baseline evaluable on post-2022 window only. Companion `derive_meeting_implied(long_df, meetings_df, lookback_business_days=1)` joins the curve to the F11 meeting frame and returns the naïve implied rate for the meeting-month contract as of T-1 business day. New dep: `pyreadr`.
 - [x] Implement Australian Government Bond yields (2y, 5y, 10y)
 - [x] Implement AUD/USD, TWI, JPY, EUR, GBP, CNY, NZD exchange rates
-- [ ] Implement ASX 200 source (incl. financials sub-index)
-- [ ] Implement BBSW rates source
+- [x] Implement ASX 200 source (incl. financials sub-index)
+- [x] Implement BBSW rates source
 
 ### Global signals
 
