@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 50 / 153 (33%)
+Progress: 51 / 153 (33%)
 
 ## 1. Problem definition
 
@@ -86,7 +86,7 @@ Progress: 50 / 153 (33%)
 
 ### Global signals
 
-- [ ] Implement FRED source for US CPI, Fed funds rate, US 10y, DXY, VIX
+- [x] Implement FRED source for US CPI, Fed funds rate, US 10y, DXY, VIX
 - [ ] Implement iron ore / copper / oil price sources
 - [ ] Implement RBNZ OCR source (cross-check Pacific peer)
 
