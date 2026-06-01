@@ -1,116 +1,111 @@
-"""FRED global signals — US CPI, Fed funds, US 10y, Fed broad USD, VIX.
+"""Commodity prices — iron ore, copper, Brent crude, WTI crude.
 
-Pulls six US / global macro series from the Federal Reserve Bank of St.
-Louis FRED database via its unauthenticated CSV endpoint
-(``fredgraph.csv?id=<SERIES_ID>``). This is the project's first
-non-Australian macro source and the first to mix monthly and daily
-frequencies in a single module.
+Four global commodity series the RBA cites alongside its own I2
+Commodity Prices Index in every Statement on Monetary Policy. Iron
+ore in particular is Australia's largest single export by value
+(>20% of goods exports), so the spot price drives terms-of-trade,
+mining-sector capex, and the AUD via the export-revenue channel.
+Copper proxies global industrial demand (especially China); Brent /
+WTI carry world oil supply / demand. All four pull from the same
+FRED unauthenticated CSV endpoint as
+:mod:`rba.data.sources.fred_global_signals` — no new infrastructure
+needed.
 
-================================  ================  ====================================
-Logical series ID                 FRED series ID    Coverage (current vintage)
---------------------------------  ----------------  ------------------------------------
-``us_headline_cpi`` (monthly SA)  ``CPIAUCSL``      1947-01 → present (BLS Cat. CUUR)
-``us_core_cpi``     (monthly SA)  ``CPILFESL``      1957-01 → present (BLS, ex food/energy)
-``us_fed_funds``    (daily)       ``DFF``           1954-07 → present (NY Fed effective FFR)
-``us_10y_treasury`` (daily)       ``DGS10``         1962-01 → present (Treasury CMT 10y)
-``us_dxy_broad``    (daily)       ``DTWEXBGS``      2006-01 → present (Fed Nominal Broad USD)
-``us_vix``          (daily)       ``VIXCLS``        1990-01 → present (CBOE close)
-================================  ================  ====================================
+==============================  ================  =====================================
+Logical series ID               FRED series ID    Coverage (current vintage)
+------------------------------  ----------------  -------------------------------------
+``iron_ore_spot`` (monthly)     ``PIORECRUSDM``   1992-01 → present (IMF, USD/dry MT)
+``copper_spot``   (monthly)     ``PCOPPUSDM``     1992-01 → present (IMF, USD/MT, LME-A)
+``brent_crude``   (daily)       ``DCOILBRENTEU``  1987-05 → present (EIA, USD/bbl)
+``wti_crude``     (daily)       ``DCOILWTICO``    1986-01 → present (EIA, USD/bbl)
+==============================  ================  =====================================
 
 Why this matters
 ----------------
-US CPI, Fed funds, and the US 10y are the three highest-citation
-non-Australian series the RBA references in every Statement on
-Monetary Policy. Fed-funds path and US-AU 10y spreads are core
-inputs to the global-rate-cycle and US-spillover features; the
-broad USD index proxies global USD strength (which mechanically
-shifts the AUD-side of the TWI); and VIX is the canonical risk-off
-indicator that lines up against AUD-USD widening and AGB-yield
-flattening in turbulence episodes. None of these are derivable from
-Australian data alone.
+Iron ore prices are *the* terms-of-trade driver for Australia — a
+$10/MT iron-ore move shows up in AUD/USD, mining-investment
+expectations, and federal-budget revenue forecasts. The RBA tracks
+the spot price (not just its own I2 index, which is a basket
+aggregate) because moves in the largest export commodity are visible
+in monetary-policy outcomes faster than the I2 aggregation reflects
+them. Copper is the canonical "Dr Copper" cyclical-demand proxy
+(particularly China-construction-and-grid exposure). Brent is the
+global oil benchmark AU export crudes (Cossack, Vincent) price off;
+the Brent–WTI spread captures world-vs-US supply differentials and
+is a useful spread feature for energy-cycle features.
 
-DXY substitution caveat
+Source choice rationale
 -----------------------
-The licensed ICE Dollar Index (the actual "DXY" — a 6-currency basket
-weighted to EUR/JPY/GBP/CAD/SEK/CHF) is **not** distributed via FRED.
-The Fed's free analog **DTWEXBGS** ("Nominal Broad U.S. Dollar Index")
-is shipped instead — a broader basket of ~26 currencies including
-emerging markets, daily, 2006-01 onwards. Behaviour at quarterly /
-monthly granularity is similar (correlation ≥ 0.95 historically) but
-not identical, particularly during EM-stress episodes where the broad
-index moves more than DXY. The substitution is intentional and
-documented; if licensed DXY is wanted later, a separate paid source
-module can be added. See CONTEXT.md "Excluded series" for the same
-licensing logic applied elsewhere (CoreLogic dwelling prices).
+- **Iron ore (monthly)**: IMF Primary Commodity Prices on FRED. The
+  market-watched series (Singapore SGX 62% Fe futures) is daily but
+  licensed; the IMF China-import spot proxy is monthly only.
+  Acceptable trade-off because terms-of-trade features evaluate at
+  monthly granularity anyway. The IMF series is the canonical "free"
+  iron-ore reference (cited by the RBA, AOFM, and Treasury).
+- **Copper (monthly)**: IMF Primary Commodity Prices on FRED. LME-A
+  cathode price daily exists but requires a licensed LME data feed;
+  COMEX HG=F (CME futures) is a different basis (HG is high-grade,
+  US-warehouse-delivered) and would silently change the conceptual
+  series. The IMF monthly average is the safe free-data choice.
+- **Brent + WTI (daily)**: EIA spot prices. Free, daily, redistributed
+  through FRED, full history back to 1986/1987. No licensing concern.
 
 Source format
 -------------
-FRED publishes simple 2-column CSVs::
+FRED publishes simple 2-column CSVs identical to the layout the
+:mod:`rba.data.sources.fred_global_signals` parser handles::
 
     observation_date,<SERIES_ID>
-    1947-01-01,21.480
-    1947-02-01,21.620
+    1992-01-01,14.31000000000000
+    1992-02-01,14.31000000000000
     ...
 
-- Header: ``observation_date,<SERIES_ID>`` — column 0 is literally
-  named ``observation_date``, conveniently matching the project schema.
-- Date format: ``YYYY-MM-DD``. Daily series carry every Mon-Fri (with
-  blank cells on US federal holidays); monthly series carry every
-  reference month at the **first day** of that month.
-- Missing values: **empty string**. The FRED endpoint emits blanks on
-  non-trading days for daily series (US federal holidays plus Good
-  Friday for VIXCLS following CBOE closures) and for the
-  currently-undefined trailing month of monthly series. ``pd.read_csv``
-  decodes these as ``NaN`` and the parser drops them.
-- Encoding: UTF-8. No metadata rows, no cp1252 quirks, no User-Agent
-  challenge — much simpler than the RBA tables.
+- Header: ``observation_date,<SERIES_ID>``.
+- Date format: ``YYYY-MM-DD``.
+- Missing values: **empty string** (Brent and WTI emit blanks on US
+  federal holidays + a handful of CBOE-style oil-market closures;
+  monthly IMF series carry no blanks because the upstream is a
+  monthly average, not a point sample).
+- Encoding: UTF-8. No metadata rows, no User-Agent challenge.
 
 Schema convention — observation_date anchor
 -------------------------------------------
-FRED stores monthly observations at the **first day** of the
-reference month (BLS native convention — CPI for Oct 2024 is keyed
-2024-10-01). This module **converts to month-end** during parsing so
-that ``observation_date`` matches the project-wide convention (period
-end for monthly series — same anchor used by :mod:`rba.data.sources.abs_cpi`,
-:mod:`rba.data.sources.abs_labour_force`,
-:mod:`rba.data.sources.westpac_mi_consumer_sentiment`, etc.). Daily-series
-``observation_date`` is the trade date, unchanged. The wide-format
-monthly CSV is keyed by ``reference_month_end`` to make the convention
-explicit on the cached artifact.
+Same as :mod:`rba.data.sources.fred_global_signals`. Daily-series
+``observation_date`` is the trade date, unchanged. Monthly-series
+``observation_date`` is **converted from FRED-native month-start to
+month-end** during parsing so it matches the project-wide period-end
+convention.
 
 Publication-date convention
 ---------------------------
-Per-observation publication dates come from
-:mod:`rba.data.fred_release_calendar`. Three rules across the six
+Per-observation publication dates come from the shared
+:mod:`rba.data.fred_release_calendar`. Two rules across the four
 series:
 
-- ``us_fed_funds`` / ``us_10y_treasury`` / ``us_dxy_broad``:
-  ``+ 1 US business day`` (next Mon-Fri excluding US federal holidays).
-- ``us_vix``: same day (CBOE publishes the VIX close 4:15pm ET).
-- ``us_headline_cpi`` / ``us_core_cpi``: ``us_monthly_flat`` rule —
-  flat ``+ 20 calendar days`` from end-of-reference-month (conservative;
-  BLS typically releases CPI 10–15 days after period end; see the
-  release-calendar module docstring for the rationale and upgrade path
-  to ALFRED-derived first-release dates).
+- ``brent_crude`` / ``wti_crude``: ``us_daily_t_plus_1`` — next US
+  business day after the trade date (EIA publishes the prior session's
+  closes the next US business morning).
+- ``iron_ore_spot`` / ``copper_spot``: ``us_monthly_flat`` — flat
+  ``+ 20 calendar days`` from end-of-reference-month. IMF Primary
+  Commodity Prices typically publish in the first week of the
+  following month (~5-day lag), so +20 is conservatively wide; see the
+  release-calendar module docstring for the shared rationale (the same
+  rule serves BLS CPI).
 
 The validation floor is ``1993-01-01`` (inflation-targeting era start)
 to match every other source module. Pre-floor observations still
 carry algorithmically-computed publication dates — the floor is a
-*validation* guard, not a *computation* floor. Pre-1993 rows are
-emitted so they're available for any extended-history sanity-check
-work, but the model's walk-forward CV consumes them from 1993 onwards
-only.
+*validation* guard, not a *computation* floor.
 
 Vintage policy
 --------------
 Stored values are the **current FRED vintage** at the time of
-download — *not* the original first-release value. The BLS revises
-seasonally-adjusted series on the annual seasonal-adjustment update
-(typically released with the January CPI release each year); the Fed
-restates effective FFR and Treasury yields on rare data-correction
-events. Acknowledged limitation; see CONTEXT.md Invariant #1 vintage
-policy. Upgrading to first-release vintages is tracked under the
-scheduled-vintage-accumulation upgrade path in the same section.
+download — *not* the original first-release value. The IMF restates
+historical commodity series ~annually on benchmark revisions (weight
+updates, new contract-month reference); the EIA restates Brent / WTI
+spot on rare data-correction events. Acknowledged limitation; see
+CONTEXT.md Invariant #1 vintage policy. The upgrade path to scheduled
+vintage accumulation is shared with every other FRED-fed source.
 
 Output schema
 -------------
@@ -120,21 +115,19 @@ Output schema
   or reference month-end (monthly series).
 - ``publication_date`` (datetime64[ns]) — algorithmic FRED release
   date from :mod:`rba.data.fred_release_calendar`.
-- ``series_id`` (object) — one of the 6 logical IDs listed in
-  ``SERIES`` (``us_headline_cpi`` / ``us_core_cpi`` / ``us_fed_funds``
-  / ``us_10y_treasury`` / ``us_dxy_broad`` / ``us_vix``).
-- ``value`` (float64) — value in upstream units. CPI series in index
-  points (1982-84 = 100 for CPIAUCSL; ditto CPILFESL); DFF and DGS10 in
-  per cent per annum; DTWEXBGS in index points (Jan 2006 = 100);
-  VIXCLS in annualised volatility points. No unit conversion at the
-  ingest layer.
+- ``series_id`` (object) — one of the 4 logical IDs listed in
+  ``SERIES``.
+- ``value`` (float64) — value in upstream units. Iron ore in USD per
+  dry metric ton (62% Fe, China import spot); copper in USD per
+  metric ton (LME-A cathode); Brent / WTI in USD per barrel. No unit
+  conversion at the ingest layer.
 
 Running this module as ``__main__`` materialises two wide-format CSVs
-to ``data/external/``:
+to ``data/external/``, mirroring the fred_global_signals split:
 
-- ``fred_global_signals_daily.csv`` keyed by ``trade_date`` with one
+- ``commodity_prices_daily.csv`` keyed by ``trade_date`` with one
   column per daily series plus ``release_date``.
-- ``fred_global_signals_monthly.csv`` keyed by ``reference_month_end``
+- ``commodity_prices_monthly.csv`` keyed by ``reference_month_end``
   with one column per monthly series plus ``release_date``.
 
 Two files rather than one because a single mixed-frequency wide pivot
@@ -145,7 +138,7 @@ align across frequencies.
 
 Side effects
 ------------
-``fetch()`` writes under ``data/raw/fred_global_signals/``:
+``fetch()`` writes under ``data/raw/commodity_prices/``:
 
 - ``<YYYY-MM-DD>__<series_id>.csv`` — verbatim CSV bytes per series.
 - ``_metadata.json`` — provenance manifest with one entry per series
@@ -169,15 +162,15 @@ import pandas as pd
 from rba.config import EXTERNAL_DATA_DIR, RAW_DATA_DIR
 from rba.data.fred_release_calendar import attach_fred_publication_dates
 
-SOURCE_NAME = "fred_global_signals"
+SOURCE_NAME = "commodity_prices"
 CSV_URL_TEMPLATE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={fred_series_id}"
 
 _CALENDAR_VALIDATION_FLOOR = pd.Timestamp("1993-01-01")
 
 
 @dataclass(frozen=True)
-class FredSeries:
-    """One FRED series and its project-side metadata.
+class CommoditySeries:
+    """One FRED commodity series and its project-side metadata.
 
     ``frequency`` drives observation-date anchoring (month-end
     conversion for monthly, pass-through for daily) and the wide-CSV
@@ -190,22 +183,20 @@ class FredSeries:
     frequency: str  # "daily" or "monthly"
 
 
-SERIES: tuple[FredSeries, ...] = (
-    FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"),
-    FredSeries(series_id="us_core_cpi", fred_series_id="CPILFESL", frequency="monthly"),
-    FredSeries(series_id="us_fed_funds", fred_series_id="DFF", frequency="daily"),
-    FredSeries(series_id="us_10y_treasury", fred_series_id="DGS10", frequency="daily"),
-    FredSeries(series_id="us_dxy_broad", fred_series_id="DTWEXBGS", frequency="daily"),
-    FredSeries(series_id="us_vix", fred_series_id="VIXCLS", frequency="daily"),
+SERIES: tuple[CommoditySeries, ...] = (
+    CommoditySeries(series_id="iron_ore_spot", fred_series_id="PIORECRUSDM", frequency="monthly"),
+    CommoditySeries(series_id="copper_spot", fred_series_id="PCOPPUSDM", frequency="monthly"),
+    CommoditySeries(series_id="brent_crude", fred_series_id="DCOILBRENTEU", frequency="daily"),
+    CommoditySeries(series_id="wti_crude", fred_series_id="DCOILWTICO", frequency="daily"),
 )
 
 
 def fetch(*, force_download: bool = True) -> pd.DataFrame:
-    """Pull every FRED series, parse, attach publication dates.
+    """Pull every commodity series, parse, attach publication dates.
 
     Each series is downloaded as an independent CSV (FRED has no
     multi-series bundle endpoint without an API key). Files are cached
-    under ``data/raw/fred_global_signals/`` with a dated snapshot
+    under ``data/raw/commodity_prices/`` with a dated snapshot
     filename and a SHA-256 provenance entry in ``_metadata.json``.
 
     Parameters
@@ -252,8 +243,8 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
 
     Delegates to :func:`rba.data.fred_release_calendar.attach_fred_publication_dates`,
     which dispatches per-series to the correct rule (daily T+1 US
-    BDay, VIX same-day, or monthly CPI + 20 days). Raises
-    ``ValueError`` if any observation on/after
+    BDay for Brent / WTI, monthly + 20 days for iron ore / copper).
+    Raises ``ValueError`` if any observation on/after
     ``_CALENDAR_VALIDATION_FLOOR`` is left without a publication date —
     which would only happen if the calendar's ``_RULES`` mapping drifts
     out of sync with this module's ``SERIES`` registry.
@@ -270,7 +261,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
     if not unmatched.empty:
         sample = unmatched[["observation_date", "series_id"]].head().to_dict("records")
         raise ValueError(
-            f"{len(unmatched)} FRED observation(s) on/after "
+            f"{len(unmatched)} commodity observation(s) on/after "
             f"{_CALENDAR_VALIDATION_FLOOR.date()} are missing a publication "
             f"date from the release calendar. Sample: {sample}"
         )
@@ -281,7 +272,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
 def _resolve_snapshot(
     dest_dir: Path,
     *,
-    spec: FredSeries,
+    spec: CommoditySeries,
     force_download: bool,
 ) -> tuple[Path, dict[str, object], bytes]:
     """Return (snapshot path, manifest entry, raw bytes) for one series."""
@@ -291,7 +282,7 @@ def _resolve_snapshot(
     if existing and not force_download:
         path = existing[-1]
         raw_bytes = path.read_bytes()
-        logger.info("Reusing existing FRED snapshot at {}", path)
+        logger.info("Reusing existing commodity snapshot at {}", path)
         entry: dict[str, object] = {
             "series_id": spec.series_id,
             "fred_series_id": spec.fred_series_id,
@@ -307,7 +298,7 @@ def _resolve_snapshot(
 
 
 def _download(
-    dest_dir: Path, *, spec: FredSeries, url: str
+    dest_dir: Path, *, spec: CommoditySeries, url: str
 ) -> tuple[Path, dict[str, object], bytes]:
     """Download one series CSV, save a dated snapshot, return path + entry + bytes."""
     today = datetime.now(timezone.utc).date().isoformat()
@@ -337,21 +328,23 @@ def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
     logger.info("Wrote provenance manifest to {}", metadata_path)
 
 
-def _parse_csv(csv_bytes: bytes, *, spec: FredSeries) -> pd.DataFrame:
+def _parse_csv(csv_bytes: bytes, *, spec: CommoditySeries) -> pd.DataFrame:
     """Parse one FRED CSV and emit long-format rows.
 
     Drops blank-value rows (US holiday non-trading days for daily
-    series; trailing reference months that haven't been published yet
-    for monthly series). For monthly series, converts the FRED-native
-    month-start anchor to month-end so observation_date matches the
-    project-wide convention.
+    Brent / WTI; the monthly IMF series typically have no blanks but
+    the same drop is applied defensively in case FRED revisions
+    introduce a trailing blank). For monthly series, converts the
+    FRED-native month-start anchor to month-end so observation_date
+    matches the project-wide convention.
 
     Parameters
     ----------
     csv_bytes
         Raw bytes from ``fredgraph.csv?id=<spec.fred_series_id>``.
     spec
-        ``FredSeries`` identifying the target series and its frequency.
+        ``CommoditySeries`` identifying the target series and its
+        frequency.
 
     Returns
     -------
@@ -425,10 +418,9 @@ def _to_wide_daily(long_df: pd.DataFrame) -> pd.DataFrame:
     """Pivot the daily slice of ``fetch()`` output to a wide CSV schema.
 
     Filters to daily-frequency series and pivots on ``observation_date``.
-    Each daily series has independent trading-day coverage (DTWEXBGS
-    starts 2006-01, DFF/DGS10 go back to mid-20th century, VIXCLS from
-    1990), so pre-coverage rows are NaN for the late-starting series —
-    expected, not an alignment bug.
+    Brent (DCOILBRENTEU) starts 1987-05 and WTI (DCOILWTICO) starts
+    1986-01, so the union daily index runs from 1986-01 with Brent NaN
+    until 1987-05 — expected, not an alignment bug.
 
     Parameters
     ----------
@@ -517,21 +509,21 @@ if __name__ == "__main__":
     long_df = fetch()
 
     daily_wide = _to_wide_daily(long_df)
-    daily_dest = EXTERNAL_DATA_DIR / "fred_global_signals_daily.csv"
+    daily_dest = EXTERNAL_DATA_DIR / "commodity_prices_daily.csv"
     daily_dest.parent.mkdir(parents=True, exist_ok=True)
     daily_wide.to_csv(daily_dest, index=False, date_format="%Y-%m-%d")
     logger.info(
-        "Wrote FRED daily signals ({} trade dates, {} series) to {}",
+        "Wrote commodity daily prices ({} trade dates, {} series) to {}",
         len(daily_wide),
         len(_DAILY_SERIES_IDS),
         daily_dest,
     )
 
     monthly_wide = _to_wide_monthly(long_df)
-    monthly_dest = EXTERNAL_DATA_DIR / "fred_global_signals_monthly.csv"
+    monthly_dest = EXTERNAL_DATA_DIR / "commodity_prices_monthly.csv"
     monthly_wide.to_csv(monthly_dest, index=False, date_format="%Y-%m-%d")
     logger.info(
-        "Wrote FRED monthly signals ({} reference months, {} series) to {}",
+        "Wrote commodity monthly prices ({} reference months, {} series) to {}",
         len(monthly_wide),
         len(_MONTHLY_SERIES_IDS),
         monthly_dest,

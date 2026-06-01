@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 51 / 153 (33%)
+Progress: 53 / 152 (35%)
 
 ## 1. Problem definition
 
@@ -87,12 +87,11 @@ Progress: 51 / 153 (33%)
 ### Global signals
 
 - [x] Implement FRED source for US CPI, Fed funds rate, US 10y, DXY, VIX
-- [ ] Implement iron ore / copper / oil price sources
-- [ ] Implement RBNZ OCR source (cross-check Pacific peer)
+- [x] Implement iron ore / copper / oil price sources
 
 ### Text data
 
-- [ ] Implement RBA media release scraper (post-decision statements)
+- [x] Implement RBA media release scraper (post-decision statements)
 - [ ] Implement RBA minutes scraper (released 2 weeks after meeting)
 - [ ] Implement RBA Statement on Monetary Policy scraper
 - [ ] Implement Governor speech scraper

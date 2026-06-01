@@ -1,6 +1,8 @@
-"""FRED global signals release calendar — algorithmic publication-date rules.
+"""FRED release calendar — algorithmic publication-date rules.
 
-Three publication-date rules cover the 6 series this module knows about:
+Three publication-date rules cover the 10 series this module knows about
+(6 from :mod:`rba.data.sources.fred_global_signals`, 4 from
+:mod:`rba.data.sources.commodity_prices`):
 
 ================================  ================  ===============================
 Logical series ID                 FRED series ID    Publication rule
@@ -11,6 +13,10 @@ Logical series ID                 FRED series ID    Publication rule
 ``us_10y_treasury`` (daily)       ``DGS10``         ``+ 1 US business day``
 ``us_dxy_broad``    (daily)       ``DTWEXBGS``      ``+ 1 US business day``
 ``us_vix``          (daily)       ``VIXCLS``        same day (CBOE 4:15pm ET close)
+``iron_ore_spot``   (monthly)     ``PIORECRUSDM``   ``observation_date + 20 days``
+``copper_spot``     (monthly)     ``PCOPPUSDM``     ``observation_date + 20 days``
+``brent_crude``     (daily)       ``DCOILBRENTEU``  ``+ 1 US business day``
+``wti_crude``       (daily)       ``DCOILWTICO``    ``+ 1 US business day``
 ================================  ================  ===============================
 
 "US business day" = Mon-Fri excluding US federal holidays per
@@ -23,17 +29,26 @@ publication rule is unaffected because the FRED CSV already emits an
 empty cell for any non-trading day, so no observation_date ever lands
 on a closure.
 
-CPI flat-offset rationale
--------------------------
-The US BLS releases monthly CPI ~10–15 days after the **end** of the
-reference month (sampled releases: Sep 2024 ref → Oct 11 release = 11
-days; Oct 2024 → Nov 13 = 13 days; Nov 2024 → Dec 11 = 11 days; Dec
-2024 → Jan 15 2025 = 15 days). A flat **+ 20 calendar days from
-period-end** is conservative — it never claims CPI was available
-*earlier* than reality. The 5–10 day buffer is small enough to
-preserve realism (no RBA meeting after Jan 15 would have its CPI
-feature marked as unseen by mistake) while keeping us strictly inside
-the leakage envelope. This matches the WPI / Building-Approvals / TVD
+Monthly flat-offset rationale
+-----------------------------
+Two upstreams currently use the ``us_monthly_flat`` rule: the US BLS
+CPI series and the IMF Primary Commodity Prices series shipped by
+:mod:`rba.data.sources.commodity_prices` (iron ore / copper). Worst
+observed lags:
+
+- BLS CPI: ~10–15 days from end-of-reference-month (sampled releases:
+  Sep 2024 ref → Oct 11 release = 11 days; Oct 2024 → Nov 13 = 13 days;
+  Nov 2024 → Dec 11 = 11 days; Dec 2024 → Jan 15 2025 = 15 days).
+- IMF Primary Commodity Prices: ~5 days from end-of-reference-month
+  (the bulletin is typically released in the first week of the
+  following month).
+
+A flat **+ 20 calendar days from period-end** is conservative for both
+— it never claims an upstream was available *earlier* than reality.
+The 5–15 day buffer is small enough to preserve realism (no RBA
+meeting after the actual release would have its monthly feature
+marked as unseen by mistake) while keeping us strictly inside the
+leakage envelope. This matches the WPI / Building-Approvals / TVD
 flat-fallback pattern used elsewhere in this codebase when a scraped
 per-release calendar isn't available. Future contributors who need
 release-date precision can replace this with an ALFRED-derived
@@ -83,24 +98,35 @@ from pandas.tseries.holiday import USFederalHolidayCalendar
 
 from rba.config import EXTERNAL_DATA_DIR
 
-# Flat conservative offset for the monthly BLS CPI series. Worst observed
-# release lag from end-of-reference-month is ~15 days; +20 days adds a
-# 5-day buffer without distorting realism.
-_CPI_FLAT_OFFSET_DAYS = 20
+# Flat conservative offset for monthly upstreams without a scrapable
+# per-release calendar (currently BLS CPI and IMF Primary Commodity
+# Prices). Worst observed release lag from end-of-reference-month is
+# ~15 days (BLS CPI); +20 days adds a 5-day buffer without distorting
+# realism, and applies cleanly to IMF commodity series whose typical
+# lag is shorter (~5 days).
+_MONTHLY_FLAT_OFFSET_DAYS = 20
 
 # Logical series_id -> publication-rule key. Three rules:
 #   "us_daily_t_plus_1" — next US business day after observation_date.
 #   "us_same_day"       — observation_date itself.
-#   "us_cpi_flat"       — observation_date + _CPI_FLAT_OFFSET_DAYS.
-# This mapping is the single source of truth shared between the source
-# module's _attach_publication_dates helper and the diagnostic builder.
+#   "us_monthly_flat"   — observation_date + _MONTHLY_FLAT_OFFSET_DAYS.
+# This mapping is the single source of truth shared between every
+# source module's _attach_publication_dates helper and the diagnostic
+# builder. Both fred_global_signals and commodity_prices contribute
+# entries to this dict.
 _RULES: dict[str, str] = {
-    "us_headline_cpi": "us_cpi_flat",
-    "us_core_cpi": "us_cpi_flat",
+    # fred_global_signals
+    "us_headline_cpi": "us_monthly_flat",
+    "us_core_cpi": "us_monthly_flat",
     "us_fed_funds": "us_daily_t_plus_1",
     "us_10y_treasury": "us_daily_t_plus_1",
     "us_dxy_broad": "us_daily_t_plus_1",
     "us_vix": "us_same_day",
+    # commodity_prices
+    "iron_ore_spot": "us_monthly_flat",
+    "copper_spot": "us_monthly_flat",
+    "brent_crude": "us_daily_t_plus_1",
+    "wti_crude": "us_daily_t_plus_1",
 }
 
 # Hand-verified per-(series, observation-date) deviations. Empty by
@@ -144,7 +170,7 @@ def fred_publication_date(observation_date: date, series_id: str) -> date:
     2. Rule lookup via ``_RULES[series_id]`` — one of:
        ``us_daily_t_plus_1`` (next US business day),
        ``us_same_day`` (observation_date itself),
-       ``us_cpi_flat`` (observation_date + 20 days).
+       ``us_monthly_flat`` (observation_date + 20 days).
 
     Parameters
     ----------
@@ -172,8 +198,8 @@ def fred_publication_date(observation_date: date, series_id: str) -> date:
         return _next_us_business_day(observation_date)
     if rule == "us_same_day":
         return observation_date
-    if rule == "us_cpi_flat":
-        return observation_date + timedelta(days=_CPI_FLAT_OFFSET_DAYS)
+    if rule == "us_monthly_flat":
+        return observation_date + timedelta(days=_MONTHLY_FLAT_OFFSET_DAYS)
     raise ValueError(
         f"Unknown FRED publication rule {rule!r} for series_id {series_id!r}; "
         "extend fred_publication_date when adding a new rule."
@@ -268,7 +294,7 @@ def build_fred_release_calendar(
 
     rows: list[dict[str, object]] = []
 
-    daily_series_ids = [sid for sid, rule in _RULES.items() if rule != "us_cpi_flat"]
+    daily_series_ids = [sid for sid, rule in _RULES.items() if rule != "us_monthly_flat"]
     d = start
     while d <= end_d:
         if d.weekday() < 5:
@@ -282,7 +308,7 @@ def build_fred_release_calendar(
                 )
         d += timedelta(days=1)
 
-    monthly_series_ids = [sid for sid, rule in _RULES.items() if rule == "us_cpi_flat"]
+    monthly_series_ids = [sid for sid, rule in _RULES.items() if rule == "us_monthly_flat"]
     months = pd.date_range(start=start, end=end_d, freq="ME")
     for ts in months:
         month_end = ts.date()

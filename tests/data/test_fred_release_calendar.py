@@ -4,7 +4,8 @@ Exercises:
 
 - the override-precedence rule keyed by ``(series_id, observation_date)``,
 - the three publication-date rules (daily T+1 US business day, VIX
-  same-day, monthly CPI flat + 20 days),
+  same-day, monthly flat + 20 days — covering BLS CPI and IMF Primary
+  Commodity Prices),
 - the ``_next_us_business_day`` primitive against US-federal-holiday
   samples (New Year's, MLK, Juneteenth, July 4th, Thanksgiving,
   Christmas with Mondayisation),
@@ -19,7 +20,7 @@ import pandas as pd
 import pytest
 
 from rba.data.fred_release_calendar import (
-    _CPI_FLAT_OFFSET_DAYS,
+    _MONTHLY_FLAT_OFFSET_DAYS,
     _OVERRIDES,
     _RULES,
     _next_us_business_day,
@@ -99,9 +100,15 @@ def test_next_us_business_day(trade: date, expected: date) -> None:
         # us_same_day: VIX — same calendar date.
         ("us_vix", date(2025, 5, 19), date(2025, 5, 19)),
         ("us_vix", date(2025, 12, 31), date(2025, 12, 31)),
-        # us_cpi_flat: CPIAUCSL / CPILFESL — +20 calendar days.
+        # us_monthly_flat: CPIAUCSL / CPILFESL — +20 calendar days.
         ("us_headline_cpi", date(2024, 10, 31), date(2024, 11, 20)),
         ("us_core_cpi", date(2025, 1, 31), date(2025, 2, 20)),
+        # us_monthly_flat: IMF commodity series — same +20 calendar days rule.
+        ("iron_ore_spot", date(2024, 10, 31), date(2024, 11, 20)),
+        ("copper_spot", date(2025, 1, 31), date(2025, 2, 20)),
+        # us_daily_t_plus_1: Brent / WTI oil — same primitive as DGS10.
+        ("brent_crude", date(2025, 5, 19), date(2025, 5, 20)),
+        ("wti_crude", date(2025, 7, 3), date(2025, 7, 7)),  # skip July 4 + weekend
     ],
 )
 def test_publication_date_per_rule(
@@ -127,11 +134,12 @@ def test_overrides_take_precedence_over_rule() -> None:
         del _OVERRIDES[key]
 
 
-def test_cpi_flat_offset_constant_is_20_days() -> None:
+def test_monthly_flat_offset_constant_is_20_days() -> None:
     """If the flat offset is ever retuned, the assumption "no RBA meeting
-    after CPI release within the 20-day window risks leakage" needs to be
-    revisited — pin the constant explicitly."""
-    assert _CPI_FLAT_OFFSET_DAYS == 20
+    after monthly release within the 20-day window risks leakage" needs
+    to be revisited — pin the constant explicitly. Applies to BLS CPI
+    and IMF Primary Commodity Prices (iron ore / copper)."""
+    assert _MONTHLY_FLAT_OFFSET_DAYS == 20
 
 
 # -----------------------------------------------------------------------------
@@ -139,25 +147,42 @@ def test_cpi_flat_offset_constant_is_20_days() -> None:
 # -----------------------------------------------------------------------------
 
 
-def test_rules_cover_every_series_in_source_module() -> None:
-    """The calendar's _RULES dict and the source module's SERIES tuple
-    must agree — otherwise _attach_publication_dates would silently leave
-    rows unmatched and the validator's raise-on-miss would never trigger
-    until the validation-floor check downstream."""
-    from rba.data.sources.fred_global_signals import SERIES
+def test_rules_cover_every_series_in_source_modules() -> None:
+    """The calendar's _RULES dict and *every* FRED-fed source module's
+    SERIES tuple must agree, jointly — otherwise _attach_publication_dates
+    would silently leave rows unmatched and the validator's raise-on-miss
+    would never trigger until the validation-floor check downstream. Both
+    fred_global_signals and commodity_prices contribute series; the union
+    of their logical IDs must equal _RULES.keys() exactly."""
+    from rba.data.sources.commodity_prices import SERIES as COMMODITY_SERIES
+    from rba.data.sources.fred_global_signals import SERIES as FRED_GLOBAL_SERIES
 
-    source_ids = {s.series_id for s in SERIES}
+    source_ids = {s.series_id for s in FRED_GLOBAL_SERIES} | {
+        s.series_id for s in COMMODITY_SERIES
+    }
     rule_ids = set(_RULES.keys())
     assert source_ids == rule_ids, (
-        f"Drift between SERIES and _RULES: "
+        f"Drift between source SERIES and _RULES: "
         f"missing rules {source_ids - rule_ids}, orphan rules {rule_ids - source_ids}"
     )
+
+
+def test_source_modules_do_not_share_series_ids() -> None:
+    """fred_global_signals and commodity_prices must not register the
+    same logical series_id (would make _RULES dispatch ambiguous and
+    double-count in the joint union test above)."""
+    from rba.data.sources.commodity_prices import SERIES as COMMODITY_SERIES
+    from rba.data.sources.fred_global_signals import SERIES as FRED_GLOBAL_SERIES
+
+    fred_ids = {s.series_id for s in FRED_GLOBAL_SERIES}
+    commodity_ids = {s.series_id for s in COMMODITY_SERIES}
+    assert fred_ids.isdisjoint(commodity_ids)
 
 
 def test_rules_are_known_strings() -> None:
     """Every rule must be one of the three implemented dispatch keys —
     catches typos in _RULES additions before they raise at lookup time."""
-    known_rules = {"us_daily_t_plus_1", "us_same_day", "us_cpi_flat"}
+    known_rules = {"us_daily_t_plus_1", "us_same_day", "us_monthly_flat"}
     assert set(_RULES.values()).issubset(known_rules)
 
 
@@ -257,7 +282,10 @@ def test_build_calendar_daily_rows_skip_weekends() -> None:
         start_date=date(2025, 5, 17),  # Sat
         end_date=date(2025, 5, 26),    # Mon (Memorial Day — but still in obs index)
     )
-    daily = df[df["series_id"].isin({"us_fed_funds", "us_10y_treasury", "us_dxy_broad", "us_vix"})]
+    daily = df[df["series_id"].isin({
+        "us_fed_funds", "us_10y_treasury", "us_dxy_broad", "us_vix",
+        "brent_crude", "wti_crude",
+    })]
     weekdays = daily["observation_date"].dt.weekday
     assert (weekdays < 5).all()
 
@@ -266,7 +294,9 @@ def test_build_calendar_monthly_rows_are_month_ends() -> None:
     df = build_fred_release_calendar(
         start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
     )
-    monthly = df[df["series_id"].isin({"us_headline_cpi", "us_core_cpi"})]
+    monthly = df[df["series_id"].isin(
+        {"us_headline_cpi", "us_core_cpi", "iron_ore_spot", "copper_spot"}
+    )]
     # Each unique observation_date among monthly rows must be a month-end.
     for ts in monthly["observation_date"].unique():
         ts = pd.Timestamp(ts)
