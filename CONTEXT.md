@@ -209,7 +209,31 @@ Baselines (`majority`, `persistence`, `taylor_rule`, `market_implied`) implement
 2. Output must have `observation_date`, `publication_date`, plus value columns. Document schema in module docstring.
 3. Save raw to `data/raw/<source>/<YYYY-MM-DD>.parquet`.
 4. Hash the raw bytes; log to `data/raw/<source>/_metadata.json`.
-5. Register in `src/rba/data/refresh.py` orchestration.
+5. Register in `src/rba/data/refresh.py` orchestration — add one `SourceSpec(name=..., fetch=...)` line to the `REGISTRY` tuple. Optional fields: `kwargs={...}` (e.g. `start_period` for ABS sources), `materialise=<callable>` (writes the `data/external/` wide artifact — leave unset for sources that don't, like `rba_f11` / `abs_cpi`), and `needs_f11=True` for the F11-dependent text sources (`rba_media_releases` / `rba_minutes` / `rba_somp`) so they reuse the already-fetched F11 frame instead of re-downloading it.
+
+### The refresh CLI
+`python -m rba.data.refresh` re-pulls every registered source in one command. `refresh.py` orchestrates only — each source's own `fetch()` still writes the immutable raw snapshot + `_metadata.json` (Invariant #5); the orchestrator never duplicates the hashing/raw-write logic.
+
+- **Default**: refresh all registered sources.
+- `--source` / `--only <name>` (repeatable): refresh a subset.
+- `--list`: print the registry and exit.
+- `--no-download`: pass `force_download=False` so sources reuse cached raw snapshots — use this for iteration, since the live crawls are large/slow.
+- `--fail-fast`: abort on the first failure (opt out of isolation).
+
+**Error-isolation contract**: one source failing (network / WAF 403 / parse error) does **not** abort the run — the failure is logged with its traceback, the run continues, and a `succeeded / failed / skipped` summary is logged at the end. The process exits non-zero if any source failed. (An F11-dependent source is reported `skipped` if its F11 dependency failed earlier in the same run.) The `REGISTRY` tuple is the single source of truth for the source list and is imported by `inventory.py` rather than redefined.
+
+### Data inventory & catalog (`inventory.py`)
+`python -m rba.data.inventory` regenerates a single generated source of truth for *what series exist, where their raw bytes live, and when each was last observed* — built from code (per-source `SERIES` registries + the refresh `REGISTRY`), per-source `data/raw/<source>/_metadata.json` provenance, and the release-calendar modules. **No hand-maintained spreadsheets.** One command regenerates everything:
+
+- **Default**: rewrite `DATA.md` (repo root) + `data/external/inventory.parquet`.
+- `--xlsx`: additionally emit `data/external/inventory.xlsx` (a convenience copy for Excel users — a generated artifact, never the source of truth).
+- `--check`: report any registered series with no matching `_metadata.json` row and exit non-zero if any are missing (writes nothing). This is the same guard the CI test (`tests/data/test_inventory.py`) enforces against `tmp_path` stubs — it catches "added/renamed a series in code but forgot to refresh raw".
+
+**What's checked in vs ignored.** `DATA.md` is the **only checked-in** artifact — a Markdown table at the repo root, diffable in PRs, renders on GitHub. `inventory.parquet` (machine-readable counterpart) and `inventory.xlsx` (optional) live under `data/external/`, which is **gitignored** like all of `/data/` — they are regenerated, never committed. Columns: `series_id | source_module | dataflow/table | source_url | raw_dir | snapshot_filename | observations | last_observation_date | release_calendar_module`.
+
+**Read-only contract (Invariant #5).** The inventory is **read-only over `data/raw/`** and **generate-only over** the three artifacts. It reads the existing `_metadata.json` for URL / SHA-256 / `downloaded_at_utc` / `observations` and re-parses the cached raw snapshot (via each source's own parse helpers) **only** to read off `last_observation_date` + the per-series row count — it never re-hashes, re-downloads, or calls any source `fetch()` (even `force_download=False` rewrites `_metadata.json` and would destroy provenance).
+
+**Catalog vs `REGISTRY` (single source of truth, two concerns).** `inventory.py` defines its own explicit per-source catalog (`SERIES_SOURCES` + `DOCUMENT_SOURCES`): each `SeriesSource` *imports* its module's `SERIES` tuple (never re-lists it) and carries small adapter callables (`identifier` / `parse_one` / `resolve`) that cope with the heterogeneity — differing series dataclasses (`dataflow`/`datakey` vs `rba_series_id` vs `fred_series_id` vs `yahoo_ticker`), differing `_metadata.json` shapes (single dict; per-`series_id` list; single per-`table` row with a summed `observations`), and the splice / mixed-leg sources. `REGISTRY` stays the source-of-truth for *how to refresh*; the catalog is the source-of-truth for *what to inventory*; the CI test asserts every `REGISTRY` name appears in the catalog so the two cannot silently diverge (as more sources are wired into `REGISTRY`, the catalog converges onto it). The six no-`SERIES` sources (`rba_f11`, `asx_ib_futures`, and the four text scrapers) appear as one synthetic `DocumentSource` row each, with `last_observation_date` taken from the materialised artifact (or, for `rba_f11`, its cached raw snapshot). A source that was implemented but never had its raw refreshed (or a series renamed without a re-pull) shows up faithfully as a blank-provenance row and is reported by `--check`.
 
 ## Coding conventions
 - **Type hints**: required on public functions.

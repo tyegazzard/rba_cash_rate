@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 57 / 152 (38%)
+Progress: 63 / 152 (41%)
 
 ## 1. Problem definition
 
@@ -99,9 +99,9 @@ Progress: 57 / 152 (38%)
 
 ### Source orchestration
 
-- [ ] Create `src/rba/data/refresh.py` skeleton (CLI entry point, per-source error handling, logging)
-- [ ] Register `rba.data.sources.rba_f11.fetch` in refresh.py
-- [ ] Register `rba.data.sources.abs_cpi.fetch` in refresh.py
+- [x] Create `src/rba/data/refresh.py` skeleton (CLI entry point, per-source error handling, logging) — single argparse CLI (`python -m rba.data.refresh`) over a `REGISTRY` tuple of frozen `SourceSpec(name, fetch, kwargs, materialise, needs_f11)` entries (the single source of truth, importable by `inventory.py`). Per-source error isolation: each `fetch()` is wrapped, failures are logged with traceback via `logger.opt(exception=True)` and recorded without aborting the run; a `succeeded/failed/skipped` `RefreshSummary` is logged at the end and `main()` exits non-zero if any failed. Flags: default run-all, `--source`/`--only` (repeatable subset), `--list`, `--no-download` (threads `force_download=False` so sources reuse cached raw snapshots), `--fail-fast` (re-raise instead of isolate). The orchestrator drives `fetch()` only (raw + `_metadata.json` stay each source's job — Invariant #5, no duplicated hashing); the optional `materialise` hook lets the remaining ~21 sources be wired one line each later. F11 reuse designed in: `needs_f11` sources receive the already-fetched F11 frame via `f11_meetings=`, and are reported `skipped` if F11 failed earlier in the run. 35 no-network tests in `tests/data/test_refresh.py` (stubbed fetch callables, monkeypatched `REGISTRY` for CLI paths). See CONTEXT.md "The refresh CLI".
+- [x] Register `rba.data.sources.rba_f11.fetch` in refresh.py — `SourceSpec(name="rba_f11", fetch=rba_f11.fetch)`, listed first so its meeting frame is available to any `needs_f11` source refreshed after it. No `materialise` (F11 writes only raw + the returned frame, no `data/external/` artifact).
+- [x] Register `rba.data.sources.abs_cpi.fetch` in refresh.py — `SourceSpec(name="abs_cpi", fetch=abs_cpi.fetch)`. No `materialise` (abs_cpi has no `__main__`/external artifact). `start_period` left at its `fetch()` default; can be overridden later via the spec's `kwargs`.
 
 ### Data inventory & catalog
 
