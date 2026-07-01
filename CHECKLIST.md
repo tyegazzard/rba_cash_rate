@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 63 / 152 (41%)
+Progress: 71 / 152 (47%)
 
 ## 1. Problem definition
 
@@ -107,14 +107,14 @@ Progress: 63 / 152 (41%)
 
 Single generated source of truth: what data we have, where it lives, when it was last refreshed. Built from the three existing canonical sources (per-source `SERIES` registries in code, per-source `_metadata.json`, per-source release-calendar CSVs) — no hand-maintained spreadsheets.
 
-- [ ] Create `src/rba/data/inventory.py` — import every `SERIES` tuple from `src/rba/data/sources/*.py` and every release-calendar module
-- [ ] Walk `data/raw/<source>/_metadata.json` files; join provenance (URL, SHA-256, downloaded_at_utc, observations) onto each series
-- [ ] Compute last `observation_date` per series from the latest raw snapshot
-- [ ] Materialise `DATA.md` at repo root — Markdown table, checked in, diffable in PRs, renders on GitHub. Columns: `series_id | source_module | dataflow/table | source_url | raw_dir | snapshot_filename | observations | last_observation_date | release_calendar_module`
-- [ ] Materialise `data/external/inventory.parquet` — machine-readable counterpart for downstream tooling
-- [ ] Add `--xlsx` CLI flag (`uv add openpyxl`) that emits an optional spreadsheet copy for teammates who prefer Excel ergonomics — generated artifact, not the source of truth
-- [ ] Add CI test (`tests/data/test_inventory.py`) asserting every registered `SERIES` entry has a matching `_metadata.json` row — catches "added a series but forgot to refresh raw"
-- [ ] Document the inventory contract in CONTEXT.md (single command to regenerate, what gets checked in vs ignored)
+- [x] Create `src/rba/data/inventory.py` — import every `SERIES` tuple from `src/rba/data/sources/*.py` and every release-calendar module
+- [x] Walk `data/raw/<source>/_metadata.json` files; join provenance (URL, SHA-256, downloaded_at_utc, observations) onto each series
+- [x] Compute last `observation_date` per series from the latest raw snapshot
+- [x] Materialise `DATA.md` at repo root — Markdown table, checked in, diffable in PRs, renders on GitHub. Columns: `series_id | source_module | dataflow/table | source_url | raw_dir | snapshot_filename | observations | last_observation_date | release_calendar_module`
+- [x] Materialise `data/external/inventory.parquet` — machine-readable counterpart for downstream tooling
+- [x] Add `--xlsx` CLI flag (`uv add openpyxl`) that emits an optional spreadsheet copy for teammates who prefer Excel ergonomics — generated artifact, not the source of truth
+- [x] Add CI test (`tests/data/test_inventory.py`) asserting every registered `SERIES` entry has a matching `_metadata.json` row — catches "added a series but forgot to refresh raw"
+- [x] Document the inventory contract in CONTEXT.md (single command to regenerate, what gets checked in vs ignored)
 
 ### EDA notebooks
 
@@ -126,10 +126,10 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 ## 4. Data preprocessing
 
-- [ ] Build src/rba/data/align.py — point-in-time join to meeting frame
-- [ ] For each source: assert publication_date ≤ meeting_date in join
-- [ ] Write tests/data/test_no_leakage.py with synthetic future-data injection
-- [ ] Implement gap-since-last-meeting feature
+- [x] Build src/rba/data/align.py — point-in-time join to meeting frame
+- [x] For each source: assert publication_date ≤ meeting_date in join
+- [x] Write tests/data/test_no_leakage.py with synthetic future-data injection
+- [x] Implement gap-since-last-meeting feature
 - [ ] Add governor / GFC / COVID / forward-guidance / cadence-change regime dummies
 - [ ] Build _is_missing indicator columns for every imputed feature
 - [ ] Document imputation choice per series in src/rba/config/features.yaml
