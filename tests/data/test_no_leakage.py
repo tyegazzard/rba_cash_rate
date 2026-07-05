@@ -97,6 +97,25 @@ def test_injected_future_value_absent_from_master() -> None:
     assert not (master["macro_series"] == _FUTURE_SENTINEL).any()
 
 
+def test_is_missing_flag_never_reveals_future_series() -> None:
+    """A series whose only reading is in the future is all-missing — no leak."""
+    meeting_frame = build_meeting_frame(_synthetic_f11())
+    future = _long(
+        [("2099-01-01", "2099-01-02", _FUTURE_SENTINEL)], series_id="future_only"
+    )
+    master = build_master(meeting_frame, {"macro": future})
+
+    # No meeting can see the 2099 reading → level all NaN, indicator all 1.
+    assert master["future_only"].isna().all()
+    assert (master["future_only_is_missing"] == 1).all()
+    assert not (master["future_only"] == _FUTURE_SENTINEL).any()
+    # The flag is exactly the level's NaN mask (Invariant #4), never the value.
+    assert (
+        master["future_only_is_missing"].tolist()
+        == master["future_only"].isna().astype(int).tolist()
+    )
+
+
 def test_age_days_measures_staleness() -> None:
     """``<sid>_age_days`` is the calendar gap from publication to the meeting."""
     meetings = _meetings(["2020-01-01"])

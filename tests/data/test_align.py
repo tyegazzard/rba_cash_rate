@@ -15,6 +15,7 @@ import pytest
 
 from rba.data import align
 from rba.data.align import (
+    add_missing_indicators,
     add_regime_dummies,
     build_master,
     build_meeting_frame,
@@ -135,6 +136,101 @@ def test_master_carries_regime_and_level_columns() -> None:
     # 2020-06 meeting is COVID-era and sees the Feb-2020 reading; 2024 meeting not.
     assert master.loc[0, "regime_covid"] == 1
     assert master.loc[0, "demo"] == 3.3
+
+
+# -----------------------------------------------------------------------------
+# _is_missing indicators (§4 / Invariant #4).
+# -----------------------------------------------------------------------------
+def _demo_f11() -> pd.DataFrame:
+    """Two-meeting F11 frame (announcements 2020-02-03 and 2020-06-02)."""
+    return pd.DataFrame(
+        {
+            "observation_date": pd.to_datetime(["2020-02-04", "2020-06-03"]),
+            "publication_date": pd.to_datetime(["2020-02-03", "2020-06-02"]),
+            "change_raw": ["0.00", "-0.25"],
+            "new_cash_rate_raw": ["0.75", "0.25"],
+            "statement_url": ["/a", "/b"],
+            "minutes_url": ["/m1", "/m2"],
+        }
+    )
+
+
+def _demo_long() -> pd.DataFrame:
+    """One 'demo' observation published 2020-03-20 — visible to 2020-06 only."""
+    return pd.DataFrame(
+        {
+            "observation_date": pd.to_datetime(["2020-03-01"]),
+            "publication_date": pd.to_datetime(["2020-03-20"]),
+            "series_id": "demo",
+            "value": [3.3],
+        }
+    )
+
+
+def test_is_missing_matches_level_isna() -> None:
+    """``<sid>_is_missing`` is exactly the level column's NaN mask, per meeting."""
+    master = build_master(build_meeting_frame(_demo_f11()), {"src": _demo_long()})
+    assert "demo_is_missing" in master.columns
+    assert (
+        master["demo_is_missing"].tolist()
+        == master["demo"].isna().astype(int).tolist()
+    )
+    # Concretely: the 2020-02 meeting predates the reading (missing), 2020-06 sees it.
+    assert master.loc[0, "demo_is_missing"] == 1
+    assert master.loc[1, "demo_is_missing"] == 0
+
+
+def test_every_level_column_gets_an_indicator_meta_columns_do_not() -> None:
+    """Every ``<sid>`` (identified by its ``_age_days`` companion) gets a flag."""
+    meeting_frame = add_regime_dummies(build_meeting_frame(_demo_f11()))
+    master = build_master(meeting_frame, {"src": _demo_long()})
+    level_ids = [
+        c[: -len("_age_days")] for c in master.columns if c.endswith("_age_days")
+    ]
+    assert level_ids == ["demo"]
+    for sid in level_ids:
+        assert f"{sid}_is_missing" in master.columns
+    # Meeting-metadata and regime dummies are not level columns → no indicator.
+    assert "regime_covid_is_missing" not in master.columns
+    assert "meeting_date_is_missing" not in master.columns
+    assert "demo_age_days_is_missing" not in master.columns
+
+
+def test_missing_indicators_are_int_zero_one_flags() -> None:
+    master = build_master(build_meeting_frame(_demo_f11()), {"src": _demo_long()})
+    flags = master["demo_is_missing"]
+    assert pd.api.types.is_integer_dtype(flags)
+    assert set(flags.unique()) <= {0, 1}
+
+
+def test_build_master_column_count_is_meta_plus_three_per_series() -> None:
+    """Each series contributes exactly level + _age_days + _is_missing."""
+    meeting_frame = build_meeting_frame(_demo_f11())
+    n_in = meeting_frame.shape[1]
+    src_a = pd.DataFrame(
+        {
+            "observation_date": pd.to_datetime(["2019-01-01"]),
+            "publication_date": pd.to_datetime(["2019-01-20"]),
+            "series_id": "a_series",
+            "value": [1.1],
+        }
+    )
+    src_b = src_a.assign(series_id="b_series", value=[2.2])
+    master = build_master(meeting_frame, {"a": src_a, "b": src_b})
+    assert master.shape[1] == n_in + 3 * 2
+
+
+def test_add_missing_indicators_does_not_mutate_input() -> None:
+    df = pd.DataFrame(
+        {
+            "meeting_date": pd.to_datetime(["2020-01-01"]),
+            "x": [1.0],
+            "x_age_days": pd.array([5], dtype="Int64"),
+        }
+    )
+    original_cols = list(df.columns)
+    add_missing_indicators(df)
+    assert list(df.columns) == original_cols
 
 
 def test_module_exposes_master_path() -> None:

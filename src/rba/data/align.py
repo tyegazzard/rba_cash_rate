@@ -59,9 +59,14 @@ One row per meeting (≥ :data:`HISTORY_START`), columns:
   ``prior_rate_pct``, ``gap_days_since_last_meeting``, ``statement_url``,
   ``minutes_url``);
 - for every numeric series ``<sid>`` across the joined sources: the as-of level
-  ``<sid>`` (most recent value with ``publication_date < meeting_date``) and its
+  ``<sid>`` (most recent value with ``publication_date < meeting_date``), its
   staleness ``<sid>_age_days`` (calendar days between that reading's publication
-  and the meeting) — the explicit guard against "stale value looks fresh".
+  and the meeting) — the explicit guard against "stale value looks fresh" — and a
+  missingness flag ``<sid>_is_missing`` (1 where no observation was published
+  before the meeting, else 0). The indicator is deterministic (``level.isna()``,
+  not fit on any statistic → no leakage) and emitted for *every* level column so
+  the schema is stable as coverage changes (Invariant #4). Actual value
+  imputation is deferred to the per-fold model ``Pipeline`` (§5/§7).
 
 Text sources (media releases / minutes / SoMP / speeches) do **not** fit the
 long ``[observation_date, publication_date, series_id, value]`` schema and are
@@ -96,6 +101,12 @@ _BPS_PER_PCT = 100.0
 
 # Long-frame schema every numeric source emits (the join contract).
 _REQUIRED_LONG_COLUMNS = ("observation_date", "publication_date", "series_id", "value")
+
+# Per-series companion-column suffixes emitted alongside each as-of level column.
+# ``_age_days`` marks a column as a level (used to enumerate levels for the
+# ``_is_missing`` pass); ``_is_missing`` is the deterministic missingness flag.
+_AGE_SUFFIX = "_age_days"
+_MISSING_SUFFIX = "_is_missing"
 
 # Meeting-frame columns carried through to the master frame, in order.
 _MEETING_COLUMNS = (
@@ -274,8 +285,9 @@ def build_master(
     Returns
     -------
     pandas.DataFrame
-        The meeting frame plus every source's as-of level + age columns, one row
-        per meeting, sorted by ``meeting_date``.
+        The meeting frame plus, per source series, the as-of level, its
+        ``_age_days`` staleness, and its ``_is_missing`` indicator column, one
+        row per meeting, sorted by ``meeting_date``.
 
     Raises
     ------
@@ -284,7 +296,10 @@ def build_master(
 
     Shapes
     ------
-    Returns: (n_meetings, len(_MEETING_COLUMNS) + 2 * total_series).
+    Returns: (n_in + 3 * total_series,) columns, where ``n_in`` is the incoming
+    meeting-frame column count (meeting metadata + any ``regime_*`` dummies) and
+    each series contributes a level, an ``_age_days``, and an ``_is_missing``
+    column.
     """
     master = (
         meeting_frame.assign(meeting_date=lambda d: pd.to_datetime(d["meeting_date"]))
@@ -306,6 +321,7 @@ def build_master(
         seen.update(new_cols)
         logger.debug("Aligned {!r}: +{} columns.", name, len(new_cols))
 
+    master = add_missing_indicators(master)
     logger.info(
         "Built master frame: {} meetings × {} columns from {} sources.",
         len(master),
@@ -313,6 +329,56 @@ def build_master(
         len(source_frames),
     )
     return master
+
+
+def add_missing_indicators(master: pd.DataFrame) -> pd.DataFrame:
+    """Append a ``<series_id>_is_missing`` indicator for every as-of level column.
+
+    Per Invariant #4 ("Add ``<col>_is_missing`` indicator alongside any
+    imputation"), every point-in-time level column ``<sid>`` gets a companion
+    ``<sid>_is_missing`` int flag: 1 where the as-of join found no observation
+    published before the meeting (the level is ``NaN``), else 0.
+
+    Missingness is a deterministic function of the already-aligned frame
+    (``master[sid].isna()``); it is *not* fit on any statistic, so computing it
+    here introduces no leakage and needs no per-fold refit. This is the §4
+    preprocessing step — actual value imputation is deliberately deferred to the
+    per-fold model ``Pipeline`` (§5/§7), where it can be fit train-only. The flag
+    is emitted for *every* level column regardless of its current NaN count, so
+    the master-frame schema stays stable as data coverage changes (a
+    fully-present series simply gets an all-zero indicator).
+
+    Level columns are identified by their ``<sid>_age_days`` companion (emitted
+    per series by :func:`as_of_levels`); meeting-metadata and ``regime_*``
+    columns have no such companion and get no indicator.
+
+    Parameters
+    ----------
+    master
+        A meeting-indexed frame carrying ``<sid>`` / ``<sid>_age_days`` column
+        pairs (the output of the :func:`build_master` join).
+
+    Returns
+    -------
+    pandas.DataFrame
+        A copy of ``master`` with one added ``<sid>_is_missing`` int column per
+        level series, in the same series order as the level columns.
+
+    Shapes
+    ------
+    Returns: (n_meetings, n_in + n_series) where ``n_series`` is the number of
+    ``<sid>_age_days`` companion columns present in ``master``.
+    """
+    out = master.copy()
+    level_ids = [
+        col[: -len(_AGE_SUFFIX)]
+        for col in master.columns
+        if col.endswith(_AGE_SUFFIX) and col[: -len(_AGE_SUFFIX)] in master.columns
+    ]
+    for sid in level_ids:
+        out[f"{sid}{_MISSING_SUFFIX}"] = master[sid].isna().astype(int)
+    logger.debug("Added {} _is_missing indicator columns.", len(level_ids))
+    return out
 
 
 def _to_ns(values: pd.Series) -> pd.Series:

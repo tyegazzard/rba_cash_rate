@@ -61,96 +61,153 @@ levels:
 
 # ---------------------------------------------------------------------------
 # Changes
-# First differences and growth rates.
+# First differences and growth rates. Implemented in features/changes.py.
+#
+# Δ (abs_diff) and %Δ (pct_change) are MEETING-space: shift by h MEETINGS (same
+# semantics as `lags:` / `rolling:`), sharing `horizons_meetings`. YoY is
+# CALENDAR-anchored — the current value vs the as-of value ~`yoy.window_days`
+# earlier (merge_asof backward) — so it stays a true year-over-year across the
+# Feb-2024 cadence change (11/yr -> 8/yr), never a fixed meeting count (the
+# Common-pitfall trap). All are leakage-safe: the compared-against row is
+# strictly earlier and every level is already point-in-time (align).
+#
+# Columns keyed on real align series_ids (as in `imputation.strategies`), NOT the
+# aspirational names. Columns absent from the frame are warn-skipped (e.g. the
+# old household_savings_ratio / mortgage_to_cash_spread, never in the master).
 # ---------------------------------------------------------------------------
 changes:
   enabled: true
-  abs_diff:
-    horizons_months: [1, 3, 6, 12]
+  horizons_meetings: [1, 3, 6, 12]     # shared by abs_diff + pct_change
+  abs_diff:                            # level difference — rate / yield / diffusion series
     columns:
-      - cpi_headline_yoy
-      - unemployment_rate
-      - aus_10y_yield
-      - household_savings_ratio
-      - westpac_mi_consumer_sentiment
-      - nab_business_conditions
-      - mortgage_to_cash_spread
-  pct_change:
-    horizons_months: [1, 3, 6, 12]
+      - unemployment_rate_sa           # was unemployment_rate
+      - agb_yield_10y                  # was aus_10y_yield
+      - consumer_sentiment             # was westpac_mi_consumer_sentiment
+      - business_conditions            # was nab_business_conditions
+  pct_change:                          # % change — price / index / FX series
     columns:
-      - asx200_close
+      - xjo                            # was asx200_close
       - aud_twi
       - aud_usd
       - aud_cny
-      - house_price_sydney
-      - house_price_melbourne
-      - house_price_brisbane
-      - house_price_perth
-      - house_price_adelaide
-      - dwelling_price_index_national
+      - housing_median_price_house_sydney_aud_thousand
+      - housing_median_price_house_melbourne_aud_thousand
+      - housing_median_price_house_brisbane_aud_thousand
+      - housing_median_price_house_perth_aud_thousand
+      - housing_median_price_house_adelaide_aud_thousand
+      - housing_price_index_rppi_legacy_8cap   # was dwelling_price_index_national
+  yoy:                                 # calendar %YoY — level / index series
+    window_days: 365
+    columns:
+      - headline_cpi_index
+      - trimmed_mean_index
+      - weighted_median_index
+      - housing_price_index_rppi_legacy_8cap
+      - commodity_prices_all_usd
+      - xjo
 
 # ---------------------------------------------------------------------------
 # Lags
-# Past values of each column at fixed offsets.
+# Past values of each column at fixed offsets. Implemented in features/lags.py.
+#
+# Meeting-space semantics: the master frame (data/processed/master.parquet) is
+# MEETING-indexed and carries only the as-of-latest value per series — it has no
+# native monthly/daily history — so a lag here is `df[<sid>].shift(k)` over
+# meeting rows, i.e. "what this series read as-of k MEETINGS ago". Horizons are
+# therefore expressed in `horizons_meetings`, not native months/days. This is
+# trivially leakage-safe (shift only looks at earlier meetings) and robust to the
+# Feb-2024 cadence change (11/yr -> 8/yr) because time is meeting-indexed.
+#
+# Columns are keyed on the RAW series_id emitted by align.as_of_levels (the real
+# master level-column names — same convention as `imputation.strategies` below),
+# NOT the aspirational/derived names used in the `levels:` / `changes:` blocks.
+# The builder lags the union of monthly_columns + daily_columns and gracefully
+# warn-skips any listed column absent from the frame being built (e.g. the FRED
+# global block us_fed_funds/vix, never refreshed into the master). The
+# monthly/daily split is retained only as a readability grouping (macro vs
+# market) — meeting-space treats both identically.
 # ---------------------------------------------------------------------------
 lags:
   enabled: true
-  default_horizons_months: [1, 3, 6, 12]
-  default_horizons_days: [1, 5, 20]
+  horizons_meetings: [1, 2, 3, 6, 12]
   monthly_columns:
-    - cpi_headline_yoy
-    - unemployment_rate
-    - wage_price_index_yoy
-    - retail_trade_mom_pct
-    - westpac_mi_consumer_sentiment
-    - nab_business_conditions
-    - nab_business_confidence
-    - housing_credit_growth_yoy
+    - headline_cpi_index                            # was cpi_headline_yoy
+    - trimmed_mean_index                            # was cpi_trimmed_mean_yoy
+    - unemployment_rate_sa                          # was unemployment_rate
+    - wpi_total_hourly_excl_bonuses_all_sectors_sa  # was wage_price_index_yoy
+    - consumer_sentiment                            # was westpac_mi_consumer_sentiment
+    - business_conditions                           # was nab_business_conditions
+    - credit_total_inc_fin_yoy_growth_sa            # was housing_credit_growth_yoy
+    - broad_money_yoy_growth_sa
   daily_columns:
-    - asx_30d_implied_rate
-    - aus_2y_yield
+    - agb_yield_2y                                  # was aus_2y_yield
+    - agb_yield_10y                                 # was aus_10y_yield
     - aud_twi
     - aud_usd
     - aud_jpy
     - aud_cny
-    - asx_vix
-    - vix
-    - aus_5y_breakeven_inflation
-    - aus_sovereign_cds_5y
+    - bbsw_3m
+    - xjo                                           # was asx200_close
 
 # ---------------------------------------------------------------------------
 # Rolling statistics
 # Past-only windowed statistics. Implemented in features/rolling.py.
+#
+# Meeting-space semantics (same as `lags:` above): the master frame is
+# MEETING-indexed and carries only the as-of-latest value per series, so a
+# rolling window spans the last N MEETINGS, not N native months/days. Windows are
+# expressed in `windows_meetings`. The window ends INCLUSIVELY at the current
+# meeting — safe because align.as_of_levels already guarantees each row's level
+# was published strictly before that meeting (Invariant #1), so the window uses
+# only pre-meeting information (Invariant #3: past-only, never center=True). The
+# first N-1 meetings of each window get NaN.
+#
+# Columns are keyed on the RAW align series_id (as in `imputation.strategies`),
+# NOT the aspirational names in `levels:` / `changes:`. The builder rolls the
+# union of monthly_columns + daily_columns and warn-skips any column absent from
+# the frame (e.g. the FRED global block, never refreshed into the master).
 # ---------------------------------------------------------------------------
 rolling:
   enabled: true
-  windows_months: [3, 6, 12]
-  windows_days: [5, 20, 60]
-  stats: [mean, std, zscore, min, max]
+  windows_meetings: [3, 6, 12]
+  stats: [mean, std, zscore, min, max, ewma]
   monthly_columns:
-    - cpi_headline_yoy
-    - unemployment_rate
-    - westpac_mi_consumer_sentiment
-    - nab_business_conditions
+    - headline_cpi_index            # was cpi_headline_yoy
+    - trimmed_mean_index
+    - unemployment_rate_sa          # was unemployment_rate
+    - consumer_sentiment            # was westpac_mi_consumer_sentiment
+    - business_conditions           # was nab_business_conditions
   daily_columns:
-    - asx200_close
+    - xjo                           # was asx200_close
     - aud_twi
     - aud_usd
-    - asx_vix
-    - vix
-    - aus_5y_breakeven_inflation
+    - agb_yield_10y                 # asx_vix / vix / breakeven absent from master
 
 # ---------------------------------------------------------------------------
 # Surprises
-# Realised value minus consensus / RBA's prior forecast. Only used when
-# consensus data is available.
+# Realised value minus consensus / RBA's prior forecast. Implemented in
+# features/surprises.py. Only produces output once a consensus/forecast source
+# is added — NONE exists yet (the master carries only realised as-of levels), so
+# this group is `enabled: false` and the builder stays inert.
+#
+# Pairing is explicit — {realised_sid: consensus_sid}: realised_sid is a real
+# align master column; consensus_sid is the (not-yet-sourced) forecast column a
+# future consensus source will emit. The builder emits `<realised_sid>_surprise`
+# = realised - consensus ONLY where BOTH columns are present in the frame, so on
+# today's consensus-free master every pair is skipped (info-logged), never crash.
+#
+# CONTRACT for whoever adds the consensus source: each consensus series MUST be
+# aligned to the SAME reference period as its realised counterpart (e.g. the
+# consensus for the CPI print realised at meeting t, not a forecast of the next
+# release) — otherwise realised - consensus is not a true surprise. See the
+# features/surprises.py module docstring.
 # ---------------------------------------------------------------------------
 surprises:
-  enabled: false  # turn on once consensus data sourced
-  columns:
-    - cpi_headline_yoy
-    - unemployment_rate
-    - gdp_yoy
+  enabled: false  # turn on once a consensus/forecast source is added
+  pairs:
+    headline_cpi_index: consensus_headline_cpi          # was cpi_headline_yoy
+    unemployment_rate_sa: consensus_unemployment_rate   # was unemployment_rate
+    gdp_real_chain_volume_sa: consensus_gdp_real        # was gdp_yoy
 
 # ---------------------------------------------------------------------------
 # Regime indicators
@@ -219,6 +276,177 @@ google_trends:
 target_lags:
   enabled: true
   horizons_meetings: [1, 2, 3]
+
+# ---------------------------------------------------------------------------
+# Imputation
+# Per-series missing-value strategy for the master-frame LEVEL columns
+# (data/processed/master.parquet, built by rba.data.align).
+#
+# Keyed on the RAW series_id emitted by align.as_of_levels — i.e. the actual
+# master-frame level column names — NOT the aspirational/derived names in the
+# `levels:` block above. These are the columns align.add_missing_indicators()
+# pairs with a deterministic `<sid>_is_missing` flag.
+#
+# Invariant #4 (Imputation hygiene):
+#   - PREFER letting trees handle NaN natively over imputing → project default
+#     is `none`. XGBoost / LightGBM / RandomForest(HistGB) split on NaN directly.
+#   - NEVER impute using whole-series statistics. Any value imputation must be
+#     wrapped in the model `Pipeline` and fit PER-FOLD on the training window
+#     only (§5/§7) — this section documents the *intended* strategy; it does not
+#     itself impute at the align/whole-frame layer.
+#   - The `<sid>_is_missing` indicator is added deterministically in align.py
+#     (missingness is not fit-dependent → no leakage), so the missingness signal
+#     survives whatever fill a downstream dense-matrix model applies.
+#
+# Strategy enum:
+#   none    — leave NaN; tree models split natively (project default).
+#   ffill   — carry the last known value forward (past-only, per-fold). This is
+#             the `dense_fallback` for models that REQUIRE a complete matrix
+#             (logistic / SVM / MLP): every series here is a non-stationary
+#             level / index / price / rate, for which forward-fill is far more
+#             faithful than a window mean/median.
+#   median  — per-fold train-window median. Deliberately NOT used for any series
+#             below: all are non-stationary, so a median is not a meaningful
+#             central value. Listed only for completeness.
+#   zero    — fill with 0.0. Only where 0 is semantically "none"; none below.
+# ---------------------------------------------------------------------------
+imputation:
+  enabled: true
+  default: none          # trees handle NaN natively (Invariant #4)
+  dense_fallback: ffill  # applied per-fold in the Pipeline for models needing a
+                         # complete matrix; never fit here, never whole-series
+  # Per-series record (all `none` — every column defers to trees / the per-fold
+  # dense_fallback). Grouped by source module for auditability.
+  strategies:
+    # abs_cpi
+    headline_cpi_index: none
+    trimmed_mean_index: none
+    weighted_median_index: none
+    # abs_labour_force
+    participation_rate_sa: none
+    underemployment_rate_sa: none
+    unemployment_rate_sa: none
+    # abs_wpi
+    wpi_total_hourly_excl_bonuses_all_sectors_sa: none
+    wpi_total_hourly_excl_bonuses_private_sa: none
+    wpi_total_hourly_excl_bonuses_public_sa: none
+    # abs_gdp
+    gdp_nominal_current_prices_sa: none
+    gdp_per_capita_real_chain_volume_sa: none
+    gdp_real_chain_volume_sa: none
+    # abs_total_value_dwellings — median prices (house / attached, 8 capitals)
+    housing_median_price_attached_adelaide_aud_thousand: none
+    housing_median_price_attached_brisbane_aud_thousand: none
+    housing_median_price_attached_canberra_aud_thousand: none
+    housing_median_price_attached_darwin_aud_thousand: none
+    housing_median_price_attached_hobart_aud_thousand: none
+    housing_median_price_attached_melbourne_aud_thousand: none
+    housing_median_price_attached_perth_aud_thousand: none
+    housing_median_price_attached_sydney_aud_thousand: none
+    housing_median_price_house_adelaide_aud_thousand: none
+    housing_median_price_house_brisbane_aud_thousand: none
+    housing_median_price_house_canberra_aud_thousand: none
+    housing_median_price_house_darwin_aud_thousand: none
+    housing_median_price_house_hobart_aud_thousand: none
+    housing_median_price_house_melbourne_aud_thousand: none
+    housing_median_price_house_perth_aud_thousand: none
+    housing_median_price_house_sydney_aud_thousand: none
+    housing_price_index_rppi_legacy_8cap: none
+    # abs_total_value_dwellings — transfer counts (house / attached, 8 capitals)
+    housing_transfer_count_attached_adelaide: none
+    housing_transfer_count_attached_brisbane: none
+    housing_transfer_count_attached_canberra: none
+    housing_transfer_count_attached_darwin: none
+    housing_transfer_count_attached_hobart: none
+    housing_transfer_count_attached_melbourne: none
+    housing_transfer_count_attached_perth: none
+    housing_transfer_count_attached_sydney: none
+    housing_transfer_count_house_adelaide: none
+    housing_transfer_count_house_brisbane: none
+    housing_transfer_count_house_canberra: none
+    housing_transfer_count_house_darwin: none
+    housing_transfer_count_house_hobart: none
+    housing_transfer_count_house_melbourne: none
+    housing_transfer_count_house_perth: none
+    housing_transfer_count_house_sydney: none
+    tvd_dwelling_count_thousand: none
+    tvd_mean_price_aud_thousand: none
+    # abs_building_approvals
+    building_approvals_dwellings_houses_nsa: none
+    building_approvals_dwellings_other_nsa: none
+    building_approvals_dwellings_total_nsa: none
+    building_approvals_private_dwellings_sa: none
+    building_approvals_private_dwellings_trend: none
+    building_approvals_value_non_residential_aud_thousand_nsa: none
+    building_approvals_value_residential_aud_thousand_nsa: none
+    # rba_d — financial aggregates / credit
+    broad_money_yoy_growth_sa: none
+    credit_business_inc_fin_sa: none
+    credit_business_legacy_sa: none
+    credit_investor_housing_sa: none
+    credit_other_personal_sa: none
+    credit_owner_occupier_housing_sa: none
+    credit_total_inc_fin_sa: none
+    credit_total_inc_fin_yoy_growth_sa: none
+    credit_total_legacy_sa: none
+    credit_total_yoy_growth_legacy_sa: none
+    # rba_e2 — household balance-sheet ratios
+    household_debt_to_income: none
+    housing_debt_to_income: none
+    owner_occupier_housing_debt_to_income: none
+    # rba_i2 — index of commodity prices
+    commodity_prices_all_aud: none
+    commodity_prices_all_sdr: none
+    commodity_prices_all_usd: none
+    commodity_prices_all_with_spot_aud: none
+    commodity_prices_all_with_spot_sdr: none
+    commodity_prices_all_with_spot_usd: none
+    commodity_prices_base_metals_aud: none
+    commodity_prices_base_metals_sdr: none
+    commodity_prices_base_metals_usd: none
+    commodity_prices_bulk_export_aud: none
+    commodity_prices_bulk_export_sdr: none
+    commodity_prices_bulk_export_usd: none
+    commodity_prices_bulk_spot_aud: none
+    commodity_prices_bulk_spot_sdr: none
+    commodity_prices_bulk_spot_usd: none
+    commodity_prices_non_rural_aud: none
+    commodity_prices_non_rural_sdr: none
+    commodity_prices_non_rural_usd: none
+    commodity_prices_rural_aud: none
+    commodity_prices_rural_sdr: none
+    commodity_prices_rural_usd: none
+    # nab_business_survey / westpac_mi_consumer_sentiment
+    business_conditions: none
+    consumer_sentiment: none
+    # agb_yields — ACGB benchmark yields (daily)
+    agb_yield_10y: none
+    agb_yield_2y: none
+    agb_yield_3y: none
+    agb_yield_5y: none
+    # bbsw_rates (daily)
+    bbsw_1m: none
+    bbsw_3m: none
+    bbsw_6m: none
+    # aud_exchange_rates — F11.1 (daily)
+    aud_cny: none
+    aud_eur: none
+    aud_gbp: none
+    aud_jpy: none
+    aud_nzd: none
+    aud_twi: none
+    aud_usd: none
+    # asx_200 — index + sector sub-indices (daily)
+    xej: none
+    xfj: none
+    xjo: none
+    xjr: none
+    xmj: none
+    # commodity_prices — global spot (FRED)
+    brent_crude: none
+    copper_spot: none
+    iron_ore_spot: none
+    wti_crude: none
 
 # ---------------------------------------------------------------------------
 # Pipeline-level settings
