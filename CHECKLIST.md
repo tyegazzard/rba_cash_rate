@@ -130,8 +130,8 @@ Single generated source of truth: what data we have, where it lives, when it was
 - [x] For each source: assert publication_date ≤ meeting_date in join
 - [x] Write tests/data/test_no_leakage.py with synthetic future-data injection
 - [x] Implement gap-since-last-meeting feature
-- [ ] Add governor / GFC / COVID / forward-guidance / cadence-change regime dummies
-- [ ] Build _is_missing indicator columns for every imputed feature
+- [x] Add governor / GFC / COVID / forward-guidance / cadence-change regime dummies
+- [x] Build _is_missing indicator columns for every imputed feature
 - [ ] Document imputation choice per series in src/rba/config/features.yaml
 - [ ] Save processed master frame to data/processed/master.parquet
 - [ ] Hash processed frame and log to MLflow as artifact

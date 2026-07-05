@@ -1,6 +1,9 @@
 # Data
 /data/
 
+# MLflow tracking store (regenerated locally; not source of truth)
+/mlruns/
+
 # Mac OS-specific storage files
 .DS_Store
 

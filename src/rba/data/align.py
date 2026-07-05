@@ -28,12 +28,27 @@ False)`` and guarded by ``tests/data/test_no_leakage.py``.
 
 Design
 ------
-``align.py`` is a **pure, no-network function library**. :func:`build_master`
-takes the meeting frame and a mapping of ``{source_name: long_frame}`` and
-returns the master frame; it never fetches. A thin orchestrator (a later
-checklist item) wires the real ``fetch(force_download=False)`` calls and writes
-``data/processed/master.parquet``. Keeping the join pure makes the leakage tests
-trivial (inject synthetic future rows; assert they never surface).
+The join core is a **pure, no-network function**: :func:`build_master` takes the
+meeting frame and a mapping of ``{source_name: long_frame}`` and returns the
+master frame; it never fetches. Keeping it pure makes the leakage tests trivial
+(inject synthetic future rows; assert they never surface).
+
+The orchestration around it (:func:`build_master_from_cache` + the
+``python -m rba.data.align`` CLI) is **read-only over ``data/raw/``**: it rebuilds
+every source's long frame from the cached raw snapshots by reusing the
+:mod:`rba.data.inventory` catalog's per-source parse adapters and each source's
+own ``_attach_publication_dates`` — it never calls any ``fetch()``, so running
+the pipeline never rewrites ``_metadata.json`` provenance (Invariant #5). It then
+writes ``data/processed/master.parquet``, hashes it (SHA-256), and writes a local
+provenance record ``data/processed/master.meta.json`` (hash / shape / meeting
+span / timestamp / git commit).
+
+MLflow artifact logging (``--mlflow``) is wired but currently
+**upstream-blocked**: this project's stack (pandas 3, pyarrow 24, and protobuf 7
+pulled in by streamlit) is newer than any released mlflow supports (mlflow caps
+``pandas<3`` / ``pyarrow<24`` / ``protobuf<6``). The call degrades gracefully to a
+warning, and the JSON manifest is the interim tracking record until upstream
+mlflow catches up. See CONTEXT.md.
 
 Output schema
 -------------
@@ -56,11 +71,21 @@ text feature layer.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import argparse
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
+import hashlib
+import json
+from pathlib import Path
 
 from loguru import logger
 import numpy as np
 import pandas as pd
+
+from rba.config import MLFLOW_TRACKING_URI, PROCESSED_DATA_DIR, PROJ_ROOT, RAW_DATA_DIR
+from rba.data import inventory
+from rba.data.sources import rba_f11
 
 # Start of the inflation-targeting era (CONTEXT.md "history start"). Module-level
 # named constant, mirroring rba_f11's ``CUTOVER_EFFECTIVE_DATE`` convention.
@@ -202,7 +227,7 @@ def as_of_levels(meeting_frame: pd.DataFrame, long_df: pd.DataFrame) -> pd.DataF
     _validate_long(long_df)
     meetings = (
         meeting_frame[["meeting_date"]]
-        .assign(meeting_date=lambda d: pd.to_datetime(d["meeting_date"]))
+        .assign(meeting_date=lambda d: _to_ns(d["meeting_date"]))
         .sort_values("meeting_date")
         .reset_index(drop=True)
     )
@@ -211,7 +236,7 @@ def as_of_levels(meeting_frame: pd.DataFrame, long_df: pd.DataFrame) -> pd.DataF
     for series_id, group in long_df.groupby("series_id", sort=True):
         right = (
             group[["publication_date", "value"]]
-            .assign(publication_date=lambda d: pd.to_datetime(d["publication_date"]))
+            .assign(publication_date=lambda d: _to_ns(d["publication_date"]))
             .dropna(subset=["publication_date"])
             .sort_values("publication_date")
             .reset_index(drop=True)
@@ -290,6 +315,16 @@ def build_master(
     return master
 
 
+def _to_ns(values: pd.Series) -> pd.Series:
+    """Coerce a datetime column to ``datetime64[ns]``.
+
+    Sources parse to mixed datetime resolutions (``[us]`` from some pandas /
+    pyarrow paths, ``[ns]`` from others); ``merge_asof`` requires the two join
+    keys share one resolution, so both sides are normalised to ``[ns]``.
+    """
+    return pd.to_datetime(values).astype("datetime64[ns]")
+
+
 def _validate_long(long_df: pd.DataFrame) -> None:
     """Assert a source frame carries the required long-format columns."""
     missing = [c for c in _REQUIRED_LONG_COLUMNS if c not in long_df.columns]
@@ -298,3 +333,400 @@ def _validate_long(long_df: pd.DataFrame) -> None:
             f"Long source frame missing required column(s): {missing}. "
             f"Expected {list(_REQUIRED_LONG_COLUMNS)}."
         )
+
+
+# -----------------------------------------------------------------------------
+# Regime dummies.
+# -----------------------------------------------------------------------------
+# RBA Governor eras as (label, start_inclusive, end_exclusive). ``None`` bounds
+# are open. Transition dates are the successor's first day in office. Feature
+# boundaries are deliberately documented here so they can be tuned in one place.
+_GOVERNOR_ERAS: tuple[tuple[str, pd.Timestamp | None, pd.Timestamp | None], ...] = (
+    ("fraser", None, pd.Timestamp("1996-09-18")),
+    ("macfarlane", pd.Timestamp("1996-09-18"), pd.Timestamp("2006-09-18")),
+    ("stevens", pd.Timestamp("2006-09-18"), pd.Timestamp("2016-09-18")),
+    ("lowe", pd.Timestamp("2016-09-18"), pd.Timestamp("2023-09-18")),
+    ("bullock", pd.Timestamp("2023-09-18"), None),
+)
+
+# Crisis / policy-regime windows as [start, end] inclusive. Judgment calls —
+# documented and centralised so the model's regime dummies are auditable.
+_GFC_WINDOW = (pd.Timestamp("2008-09-01"), pd.Timestamp("2009-12-31"))  # Lehman → recovery
+_COVID_WINDOW = (pd.Timestamp("2020-03-01"), pd.Timestamp("2021-12-31"))  # pandemic emergency
+# Explicit forward guidance: 3-year yield-curve control introduced 2020-03-19,
+# abandoned 2021-11-02; the "no hike before 2024" calendar guidance sat inside it.
+_FORWARD_GUIDANCE_WINDOW = (pd.Timestamp("2020-03-19"), pd.Timestamp("2021-11-02"))
+# 11→8 meetings/year cadence change (post-2023 RBA Review), first new-cadence
+# meeting 2024-02-05/06.
+_CADENCE_CHANGE_DATE = pd.Timestamp("2024-02-01")
+
+
+def add_regime_dummies(meeting_frame: pd.DataFrame) -> pd.DataFrame:
+    """Append regime-indicator columns to a meeting-indexed frame.
+
+    Adds, keyed off ``meeting_date``:
+
+    - ``regime_gov_<name>`` (one per Governor era) — 1 during that governorship.
+    - ``regime_gfc`` / ``regime_covid`` / ``regime_forward_guidance`` — 1 inside
+      the respective window.
+    - ``regime_post2024_cadence`` — 1 for meetings under the 8/year cadence.
+
+    Parameters
+    ----------
+    meeting_frame
+        Frame with a ``meeting_date`` (datetime64) column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A copy of ``meeting_frame`` with the added ``regime_*`` int columns.
+
+    Shapes
+    ------
+    Returns: (n_meetings, n_in + len(_GOVERNOR_ERAS) + 4).
+    """
+    out = meeting_frame.copy()
+    dates = pd.to_datetime(out["meeting_date"])
+
+    for label, start, end in _GOVERNOR_ERAS:
+        mask = pd.Series(True, index=out.index)
+        if start is not None:
+            mask &= dates >= start
+        if end is not None:
+            mask &= dates < end
+        out[f"regime_gov_{label}"] = mask.astype(int)
+
+    out["regime_gfc"] = _in_window(dates, _GFC_WINDOW)
+    out["regime_covid"] = _in_window(dates, _COVID_WINDOW)
+    out["regime_forward_guidance"] = _in_window(dates, _FORWARD_GUIDANCE_WINDOW)
+    out["regime_post2024_cadence"] = (dates >= _CADENCE_CHANGE_DATE).astype(int)
+    return out
+
+
+def _in_window(dates: pd.Series, window: tuple[pd.Timestamp, pd.Timestamp]) -> pd.Series:
+    """1 where ``dates`` fall in the inclusive ``[start, end]`` window, else 0."""
+    start, end = window
+    return ((dates >= start) & (dates <= end)).astype(int)
+
+
+# -----------------------------------------------------------------------------
+# Read-only source loading (reuses the inventory catalog; never calls fetch()).
+# -----------------------------------------------------------------------------
+MASTER_PARQUET_PATH = PROCESSED_DATA_DIR / "master.parquet"
+MASTER_META_PATH = PROCESSED_DATA_DIR / "master.meta.json"
+
+
+def load_source_frames(raw_root: Path = RAW_DATA_DIR) -> dict[str, pd.DataFrame]:
+    """Rebuild every numeric source's long frame from cached raw — read-only.
+
+    Reuses :data:`rba.data.inventory.SERIES_SOURCES` (the per-source parse
+    adapters) to parse each cached snapshot and re-attach publication dates via
+    the source's own ``_attach_publication_dates`` — **without** calling any
+    ``fetch()``, so the pipeline never rewrites ``_metadata.json`` provenance
+    (Invariant #5). One source failing (e.g. never refreshed) is logged and
+    skipped, not fatal.
+
+    Parameters
+    ----------
+    raw_root
+        The ``data/raw`` root (parameterised for tests).
+
+    Returns
+    -------
+    dict[str, pandas.DataFrame]
+        ``{source_name: long_frame}`` with the :data:`_REQUIRED_LONG_COLUMNS`
+        schema, for every source that loaded successfully.
+    """
+    by_name: dict[str, list[inventory.SeriesSource]] = defaultdict(list)
+    for record in inventory.SERIES_SOURCES:
+        by_name[record.name].append(record)
+
+    frames: dict[str, pd.DataFrame] = {}
+    for name, records in by_name.items():
+        try:
+            frames[name] = _load_source_long(name, records, raw_root)
+        except Exception as exc:  # noqa: BLE001 — isolation, like refresh.py
+            logger.warning("Skipping source {!r} (read-only load failed): {}", name, exc)
+    logger.info("Loaded {} of {} numeric sources from cache.", len(frames), len(by_name))
+    return frames
+
+
+def _load_source_long(
+    name: str,
+    records: list[inventory.SeriesSource],
+    raw_root: Path,
+) -> pd.DataFrame:
+    """Rebuild one source's long frame (all series) from its cached snapshots."""
+    entries = inventory.read_metadata(raw_root, name)
+    if not entries:
+        raise ValueError("no _metadata.json (source never refreshed)")
+
+    module = records[0].module
+    cache: dict[Path, bytes] = {}
+    is_splice = any(r.resolve is inventory._resolve_live_csv for r in records)
+
+    if is_splice:
+        frames = _parse_splice_series(name, records, entries, raw_root, cache)
+    else:
+        frames = _parse_simple_series(name, records, entries, raw_root, cache)
+
+    if not frames:
+        raise ValueError("no series parsed from cached raw")
+
+    long_df = pd.concat(frames, ignore_index=True)
+    long_df = module._attach_publication_dates(long_df)
+    return long_df[list(_REQUIRED_LONG_COLUMNS)]
+
+
+def _parse_simple_series(
+    name: str,
+    records: list[inventory.SeriesSource],
+    entries: list[dict[str, object]],
+    raw_root: Path,
+    cache: dict[Path, bytes],
+) -> list[pd.DataFrame]:
+    """Parse one snapshot per spec (per-series-file / single-file / per-table)."""
+    frames: list[pd.DataFrame] = []
+    for record in records:
+        for spec in record.series:
+            entry = record.resolve(spec, entries)
+            if entry is None:
+                logger.warning("{}: series {!r} has no metadata row; skipping.", name, spec.series_id)
+                continue
+            raw_bytes = inventory._read_snapshot(raw_root, name, entry, cache)
+            if raw_bytes is None:
+                continue
+            frames.append(record.parse_one(raw_bytes, spec))
+    return frames
+
+
+def _parse_splice_series(
+    name: str,
+    records: list[inventory.SeriesSource],
+    entries: list[dict[str, object]],
+    raw_root: Path,
+    cache: dict[Path, bytes],
+) -> list[pd.DataFrame]:
+    """Rebuild a spliced source (aud / bbsw) across all XLS + live-CSV snapshots.
+
+    Mirrors each source's own splice rule: parse every series from each archive
+    (``.xls``, ``missing_ok=True``) and the live ``.csv``, concatenate with the
+    live CSV last, then ``drop_duplicates(keep='last')`` so the live vintage wins.
+    """
+    module = records[0].module
+    # XLS archives first, live CSV last (so keep='last' prefers the live vintage).
+    ordered = sorted(
+        entries, key=lambda e: str(e.get("snapshot_filename", "")).endswith(".csv")
+    )
+    frames: list[pd.DataFrame] = []
+    for record in records:
+        for spec in record.series:
+            per_spec: list[pd.DataFrame] = []
+            for entry in ordered:
+                filename = str(entry.get("snapshot_filename", ""))
+                raw_bytes = inventory._read_snapshot(raw_root, name, entry, cache)
+                if raw_bytes is None:
+                    continue
+                if filename.endswith(".xls"):
+                    per_spec.append(module._parse_xls(raw_bytes, spec=spec, missing_ok=True))
+                elif filename.endswith(".csv"):
+                    per_spec.append(module._parse_csv(raw_bytes, spec=spec, missing_ok=True))
+            if per_spec:
+                combined = pd.concat(per_spec, ignore_index=True).drop_duplicates(
+                    subset=["series_id", "observation_date"], keep="last"
+                )
+                frames.append(combined)
+    return frames
+
+
+def load_meeting_frame(raw_root: Path = RAW_DATA_DIR) -> pd.DataFrame:
+    """Load + build the meeting frame from cached F11 raw — read-only.
+
+    Reads the single cached ``rba_f11`` HTML snapshot and reproduces
+    ``rba_f11.fetch``'s parse + date-convention steps without writing anything.
+    """
+    entries = inventory.read_metadata(raw_root, rba_f11.SOURCE_NAME)
+    if not entries:
+        raise FileNotFoundError(
+            "No cached rba_f11 snapshot; run `python -m rba.data.refresh --source rba_f11`."
+        )
+    raw_bytes = inventory._read_snapshot(raw_root, rba_f11.SOURCE_NAME, entries[0], {})
+    if raw_bytes is None:
+        raise FileNotFoundError("Cached rba_f11 snapshot file missing.")
+    f11 = rba_f11._apply_date_convention(rba_f11._parse(raw_bytes))
+    return build_meeting_frame(f11)
+
+
+# -----------------------------------------------------------------------------
+# Orchestration: cache → master frame → data/processed/master.parquet.
+# -----------------------------------------------------------------------------
+def build_master_from_cache(raw_root: Path = RAW_DATA_DIR) -> pd.DataFrame:
+    """End-to-end master frame from cached raw (read-only, no network).
+
+    Loads the meeting frame + every numeric source from cache, adds regime
+    dummies, and runs the point-in-time :func:`build_master` join.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The meeting-indexed master frame.
+    """
+    meeting_frame = add_regime_dummies(load_meeting_frame(raw_root))
+    source_frames = load_source_frames(raw_root)
+    return build_master(meeting_frame, source_frames)
+
+
+def write_master(master: pd.DataFrame, path: Path = MASTER_PARQUET_PATH) -> str:
+    """Write the master frame to Parquet and return its SHA-256 (Invariant #5).
+
+    Parameters
+    ----------
+    master
+        The master frame.
+    path
+        Destination (default ``data/processed/master.parquet``).
+
+    Returns
+    -------
+    str
+        The hex SHA-256 digest of the written Parquet bytes.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    master.to_parquet(path, index=False)
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    logger.success(
+        "Wrote {} ({} meetings × {} cols); sha256={}",
+        path,
+        len(master),
+        master.shape[1],
+        digest,
+    )
+    return digest
+
+
+def write_master_manifest(
+    master: pd.DataFrame,
+    parquet_path: Path,
+    digest: str,
+    path: Path = MASTER_META_PATH,
+) -> dict[str, object]:
+    """Write a local provenance record for the master frame (Invariant #5).
+
+    A lightweight, dependency-free stand-in for MLflow artifact logging (which
+    is currently upstream-incompatible with this project's stack — see the
+    module docstring / CONTEXT.md). Persists the frame's SHA-256, shape, meeting
+    span, generation timestamp, and the current git commit so any downstream run
+    can verify exactly which processed frame it consumed.
+
+    Parameters
+    ----------
+    master
+        The master frame.
+    parquet_path
+        Path the frame was written to (its name is recorded).
+    digest
+        The SHA-256 hex digest returned by :func:`write_master`.
+    path
+        Destination JSON (default ``data/processed/master.meta.json``).
+
+    Returns
+    -------
+    dict
+        The manifest that was written.
+    """
+    manifest: dict[str, object] = {
+        "artifact": parquet_path.name,
+        "sha256": digest,
+        "n_meetings": int(len(master)),
+        "n_columns": int(master.shape[1]),
+        "first_meeting": str(master["meeting_date"].min().date()),
+        "last_meeting": str(master["meeting_date"].max().date()),
+        "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
+        "git_commit": _git_commit(),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    logger.success("Wrote provenance manifest {}", path)
+    return manifest
+
+
+def _git_commit(root: Path = PROJ_ROOT) -> str | None:
+    """Resolve the current git commit SHA read-only, or ``None`` if unavailable.
+
+    Reads ``.git`` directly (no subprocess): follows ``HEAD`` to its ref and
+    falls back to ``packed-refs``. A detached HEAD returns its raw SHA.
+    """
+    try:
+        head = (root / ".git" / "HEAD").read_text(encoding="utf-8").strip()
+        if not head.startswith("ref:"):
+            return head  # detached HEAD — raw SHA
+        ref = head.split(" ", 1)[1].strip()
+        loose = root / ".git" / ref
+        if loose.exists():
+            return loose.read_text(encoding="utf-8").strip()
+        packed = root / ".git" / "packed-refs"
+        if packed.exists():
+            for line in packed.read_text(encoding="utf-8").splitlines():
+                if line.endswith(ref):
+                    return line.split(" ", 1)[0]
+        return None
+    except OSError:
+        return None
+
+
+def log_master_to_mlflow(master: pd.DataFrame, path: Path, digest: str) -> None:
+    """Log the master frame as an MLflow artifact with its hash + shape.
+
+    MLflow is imported lazily so importing :mod:`rba.data.align` (and the test
+    suite) never pays for it. Failures are logged, not raised.
+    """
+    try:
+        import mlflow
+
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment("data_preprocessing")
+        stamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        with mlflow.start_run(run_name=f"master_frame_{stamp}"):
+            mlflow.log_param("n_meetings", len(master))
+            mlflow.log_param("n_columns", master.shape[1])
+            mlflow.log_param("first_meeting", str(master["meeting_date"].min().date()))
+            mlflow.log_param("last_meeting", str(master["meeting_date"].max().date()))
+            mlflow.set_tag("sha256", digest)
+            mlflow.log_artifact(str(path))
+        logger.success("Logged master frame to MLflow (sha256={}).", digest)
+    except Exception as exc:  # noqa: BLE001 — MLflow logging is best-effort
+        logger.warning("MLflow logging skipped: {}", exc)
+
+
+# -----------------------------------------------------------------------------
+# CLI.
+# -----------------------------------------------------------------------------
+def build_parser() -> argparse.ArgumentParser:
+    """Build the ``rba.data.align`` argument parser."""
+    parser = argparse.ArgumentParser(
+        prog="rba.data.align",
+        description="Build the point-in-time master frame from cached raw data.",
+    )
+    parser.add_argument(
+        "--mlflow",
+        action="store_true",
+        help="Also log the master frame to MLflow (currently upstream-blocked by "
+        "this project's stack — see the module docstring; degrades gracefully).",
+    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """CLI entry point. Returns the process exit code."""
+    args = build_parser().parse_args(argv)
+
+    master = build_master_from_cache()
+    digest = write_master(master)
+    write_master_manifest(master, MASTER_PARQUET_PATH, digest)
+    if args.mlflow:
+        log_master_to_mlflow(master, MASTER_PARQUET_PATH, digest)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
