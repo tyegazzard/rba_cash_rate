@@ -159,8 +159,8 @@ Single generated source of truth: what data we have, where it lives, when it was
 ### Feature pipeline
 
 - [x] Build src/rba/features/build.py — orchestrates all feature builders from YAML config
-- [ ] Add feature versioning (hash of config + code) for reproducibility
-- [ ] Generate feature importance report (mutual info, correlation with target)
+- [x] Add feature versioning (hash of config + code) for reproducibility
+- [x] Generate feature importance report (mutual info, correlation with target)
 
 ## 6. Baseline models
 
