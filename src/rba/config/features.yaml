@@ -230,19 +230,35 @@ regime:
 
 # ---------------------------------------------------------------------------
 # Text features
-# Implemented in features/text.py. Three escalating tiers.
+# Implemented in features/text/ (lexicon.py now; embeddings.py later). Three
+# escalating tiers.
+#
+# `documents` are reconciled to the REAL data/external/ Parquet artifact names
+# (same reconciliation the numeric blocks apply to series_ids), NOT the earlier
+# aspirational names — the builder (features/text/lexicon.py) reads
+# data/external/<name>.parquet and warn-skips any artifact absent on disk (e.g.
+# rba_speeches, not yet refreshed). Point-in-time meeting-frame alignment of the
+# per-document scores is DEFERRED to a shared text-align step (common to LM +
+# custom-dict + embeddings); the lexicon builder stops at per-document scores
+# keyed on publication_date.
 # ---------------------------------------------------------------------------
 text:
   enabled: true
   documents:
-    - rba_post_meeting_statement
+    - rba_media_releases                 # was rba_post_meeting_statement
     - rba_minutes
-    - rba_statement_on_monetary_policy
-    - rba_governor_speeches
+    - rba_somp                           # was rba_statement_on_monetary_policy
+    - rba_speeches                       # was rba_governor_speeches (Parquet absent -> warn-skipped)
   lexicon:
     enabled: true
     lexicons: [loughran_mcdonald, custom_rba_hawk_dove]
-    aggregations: [count, ratio, normalized_count]
+    # `ratio` dropped (redundant given count + normalized_count). Per category:
+    #   count            = raw category token count
+    #   normalized_count = category tokens per 1000 total words (scale-free)
+    # Plus a document-level lm_tone = (pos - neg)/(pos + neg); NaN when
+    # pos + neg == 0 (no directional signal). See features/text/lexicon.py.
+    aggregations: [count, normalized_count]
+    emit_tone: true
   embeddings:
     enabled: true
     model: sentence-transformers/all-MiniLM-L6-v2

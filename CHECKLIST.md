@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 80 / 152 (53%)
+Progress: 86 / 152 (56%)
 
 ## 1. Problem definition
 
@@ -141,16 +141,16 @@ Single generated source of truth: what data we have, where it lives, when it was
 ### Numerical features
 
 - [x] Implement src/rba/features/lags.py with configurable lag horizons
-- [ ] Implement src/rba/features/rolling.py (mean, std, z-score, min, max, EWMA)
-- [ ] Implement src/rba/features/changes.py (Δ, %Δ, YoY)
-- [ ] Implement src/rba/features/surprises.py where consensus available
-- [ ] Verify all rolling windows are past-only (test with center=False)
-- [ ] Add unit tests for shape, NaN handling at series start, and leakage
+- [x] Implement src/rba/features/rolling.py (mean, std, z-score, min, max, EWMA)
+- [x] Implement src/rba/features/changes.py (Δ, %Δ, YoY)
+- [x] Implement src/rba/features/surprises.py where consensus available
+- [x] Verify all rolling windows are past-only (test with center=False)
+- [x] Add unit tests for shape, NaN handling at series start, and leakage
 
 ### Text features
 
-- [ ] Implement Loughran-McDonald lexicon scoring
-- [ ] Implement custom hawkish/dovish dictionary (collect, label ~50 terms)
+- [x] Implement Loughran-McDonald lexicon scoring
+- [~] Implement custom hawkish/dovish dictionary (collect, label ~50 terms) (deferred)
 - [ ] Implement off-the-shelf sentence embeddings (all-MiniLM-L6-v2 baseline)
 - [ ] Optional: fine-tune sentiment model on labelled RBA/FOMC data
 - [ ] Cache embeddings to data/processed/embeddings/ keyed by document hash
