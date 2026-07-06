@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 88 / 153 (58%)
+Progress: 91 / 153 (59%)
 
 ## 1. Problem definition
 
@@ -164,7 +164,7 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 ## 6. Baseline models
 
-- [ ] Implement Model protocol in src/rba/models/base.py
+- [x] Implement Model protocol in src/rba/models/base.py
 - [ ] Implement majority-class baseline
 - [ ] Implement persistence baseline (predict last decision)
 - [ ] Implement Taylor rule baseline (with literature default coefficients, then fitted)

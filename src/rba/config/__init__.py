@@ -13,6 +13,10 @@ PROJ_ROOT = Path(__file__).resolve().parents[3]
 # experiment/feature configuration (CONTEXT.md "Configs" convention).
 CONFIG_DIR = Path(__file__).resolve().parent
 FEATURES_CONFIG_PATH = CONFIG_DIR / "features.yaml"
+MODELS_CONFIG_PATH = CONFIG_DIR / "models.yaml"
+
+# Top-level ``models.yaml`` key that holds run-level defaults rather than a model.
+_MODELS_DEFAULTS_KEY = "defaults"
 
 DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -68,3 +72,48 @@ def load_features_config(path: Path = FEATURES_CONFIG_PATH) -> dict[str, Any]:
     config, so callers (feature builders) need not know the path.
     """
     return load_yaml_config(path)
+
+
+def load_models_config(path: Path = MODELS_CONFIG_PATH) -> dict[str, Any]:
+    """Load the full ``models.yaml`` mapping (every model entry + ``defaults``).
+
+    Thin wrapper over :func:`load_yaml_config` pinned to the project's model
+    config. Callers usually want a single entry — see :func:`load_model_config`.
+    """
+    return load_yaml_config(path)
+
+
+def load_model_config(name: str, path: Path = MODELS_CONFIG_PATH) -> dict[str, Any]:
+    """Load a single named model entry from ``models.yaml``.
+
+    Returns the entry as a shallow copy with its ``name`` injected (handy for
+    logging / MLflow run naming), so it can be passed straight to
+    :func:`rba.models.build_model`.
+
+    Parameters
+    ----------
+    name
+        A model key in ``models.yaml`` (e.g. ``"majority_class"``). The run-level
+        ``defaults`` section is not a model and cannot be requested.
+    path
+        Override for the config location (injectable for tests).
+
+    Returns
+    -------
+    dict
+        The model entry — ``module`` / ``class`` / ``task`` / ``default`` /
+        ``search_space`` (as present) plus an injected ``name``.
+
+    Raises
+    ------
+    KeyError
+        If ``name`` is absent from the config (or is the ``defaults`` section). The
+        message lists the available model names.
+    """
+    config = load_models_config(path)
+    if name == _MODELS_DEFAULTS_KEY or name not in config:
+        available = sorted(k for k in config if k != _MODELS_DEFAULTS_KEY)
+        raise KeyError(f"No model named {name!r} in {path}. Available: {available}.")
+    entry = dict(config[name])
+    entry.setdefault("name", name)
+    return entry
