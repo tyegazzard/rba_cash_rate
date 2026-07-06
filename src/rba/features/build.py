@@ -64,6 +64,7 @@ import pandas as pd
 
 from rba.config import PROCESSED_DATA_DIR, load_features_config
 from rba.data import align
+from rba.features import versioning
 from rba.features.changes import build_changes
 from rba.features.lags import build_lags
 from rba.features.rolling import build_rolling
@@ -295,8 +296,14 @@ def write_features_manifest(
     meeting span, generation timestamp, git commit — plus the list of feature
     groups that were enabled, so any downstream run can verify exactly which
     feature frame it consumed and how it was configured.
-    ``pipeline.feature_version_hash`` (a hash of config + code) is a separate
-    checklist item and is not populated here.
+
+    It also records the **feature-version hash** (:mod:`rba.features.versioning`)
+    — a reproducibility digest over the config + builder code — alongside its
+    ``config_hash`` / ``code_hash`` components. The tracked
+    ``features.yaml`` ``pipeline.feature_version_hash`` field is left as a null
+    pin slot; if it is pinned to a non-null value that disagrees with the computed
+    hash, :func:`rba.features.versioning.resolve_feature_version` logs a drift
+    warning here.
 
     Returns
     -------
@@ -304,6 +311,9 @@ def write_features_manifest(
         The manifest that was written.
     """
     enabled = [g for g in GROUP_BUILDERS if group_enabled(config, g)]
+    config_hash = versioning.hash_config(config)
+    code_hash = versioning.hash_code()
+    feature_version = versioning.resolve_feature_version(config)
     manifest: dict[str, object] = {
         "artifact": parquet_path.name,
         "sha256": digest,
@@ -312,6 +322,9 @@ def write_features_manifest(
         "first_meeting": str(features[_MEETING_KEY].min().date()),
         "last_meeting": str(features[_MEETING_KEY].max().date()),
         "enabled_groups": enabled,
+        "feature_version_hash": feature_version,
+        "config_hash": config_hash,
+        "code_hash": code_hash,
         "generated_at_utc": datetime.now(tz=timezone.utc).isoformat(),
         "git_commit": align._git_commit(),
     }

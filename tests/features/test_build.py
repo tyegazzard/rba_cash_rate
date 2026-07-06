@@ -255,8 +255,26 @@ def test_write_features_and_manifest_roundtrip(tmp_path: Path) -> None:
     assert manifest["sha256"] == digest
     assert manifest["n_meetings"] == len(features)
     assert manifest["enabled_groups"] == ["target_lags"]
+    # Feature-version reproducibility fields (rba.features.versioning).
+    from rba.features import versioning
+
+    assert manifest["config_hash"] == versioning.hash_config(config)
+    assert manifest["code_hash"] == versioning.hash_code()
+    assert manifest["feature_version_hash"] == versioning.combine(
+        manifest["config_hash"], manifest["code_hash"]
+    )
     on_disk = json.loads(meta_path.read_text())
     assert on_disk["sha256"] == digest
+    assert on_disk["feature_version_hash"] == manifest["feature_version_hash"]
+
+
+def test_manifest_warns_on_pinned_version_drift(tmp_path: Path, loguru_messages: list) -> None:
+    config = _config(pipeline={"feature_version_hash": "a_stale_pinned_hash"})
+    features = build_features(_master(), config=config)
+    write_features_manifest(
+        features, config, tmp_path / "features.parquet", "digest", tmp_path / "features.meta.json"
+    )
+    assert any("drift" in m for m in loguru_messages)
 
 
 def test_group_builders_registry_covers_expected_groups() -> None:

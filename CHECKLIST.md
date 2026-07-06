@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 87 / 152 (56%)
+Progress: 88 / 153 (58%)
 
 ## 1. Problem definition
 
@@ -144,6 +144,7 @@ Single generated source of truth: what data we have, where it lives, when it was
 - [x] Implement src/rba/features/rolling.py (mean, std, z-score, min, max, EWMA)
 - [x] Implement src/rba/features/changes.py (Δ, %Δ, YoY)
 - [x] Implement src/rba/features/surprises.py where consensus available
+- [x] Implement src/rba/features/target_lags.py (past values of the target as features)
 - [x] Verify all rolling windows are past-only (test with center=False)
 - [x] Add unit tests for shape, NaN handling at series start, and leakage
 
@@ -157,7 +158,7 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 ### Feature pipeline
 
-- [ ] Build src/rba/features/build.py — orchestrates all feature builders from YAML config
+- [x] Build src/rba/features/build.py — orchestrates all feature builders from YAML config
 - [ ] Add feature versioning (hash of config + code) for reproducibility
 - [ ] Generate feature importance report (mutual info, correlation with target)
 
