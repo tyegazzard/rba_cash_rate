@@ -230,17 +230,24 @@ regime:
 
 # ---------------------------------------------------------------------------
 # Text features
-# Implemented in features/text/ (lexicon.py now; embeddings.py later). Three
-# escalating tiers.
+# Implemented in features/text/. Scope is intentionally the LM lexicon ONLY:
+# the custom hawk/dove dictionary, sentence embeddings, and fine-tuned sentiment
+# are DEFERRED (low expected upside for a corpus of similar central-bank prose,
+# and to keep the feature-column count in check) — see their disabled sections
+# below. Re-enable a tier by flipping its `enabled` flag and implementing its
+# builder.
 #
 # `documents` are reconciled to the REAL data/external/ Parquet artifact names
 # (same reconciliation the numeric blocks apply to series_ids), NOT the earlier
 # aspirational names — the builder (features/text/lexicon.py) reads
 # data/external/<name>.parquet and warn-skips any artifact absent on disk (e.g.
-# rba_speeches, not yet refreshed). Point-in-time meeting-frame alignment of the
-# per-document scores is DEFERRED to a shared text-align step (common to LM +
-# custom-dict + embeddings); the lexicon builder stops at per-document scores
-# keyed on publication_date.
+# rba_speeches, not yet refreshed).
+#
+# The lexicon builder stops at per-DOCUMENT scores keyed on publication_date;
+# point-in-time meeting-frame alignment (strict `<`, most-recent-prior for
+# statements/minutes/somp) is DEFERRED to the feature-pipeline step
+# (features/build.py), which is where the text scores are joined onto the master
+# frame. Until then the LM scores are a standalone per-document artifact.
 # ---------------------------------------------------------------------------
 text:
   enabled: true
@@ -251,7 +258,7 @@ text:
     - rba_speeches                       # was rba_governor_speeches (Parquet absent -> warn-skipped)
   lexicon:
     enabled: true
-    lexicons: [loughran_mcdonald, custom_rba_hawk_dove]
+    lexicons: [loughran_mcdonald]        # custom_rba_hawk_dove DEFERRED (not implemented)
     # `ratio` dropped (redundant given count + normalized_count). Per category:
     #   count            = raw category token count
     #   normalized_count = category tokens per 1000 total words (scale-free)
@@ -260,12 +267,12 @@ text:
     aggregations: [count, normalized_count]
     emit_tone: true
   embeddings:
-    enabled: true
+    enabled: false  # DEFERRED — low upside on similar prose; avoids column blow-up
     model: sentence-transformers/all-MiniLM-L6-v2
     cache_dir: data/processed/embeddings
     aggregation: document_mean
   fine_tuned_sentiment:
-    enabled: false  # stretch goal
+    enabled: false  # DEFERRED (stretch goal)
     model: null
 
 # ---------------------------------------------------------------------------

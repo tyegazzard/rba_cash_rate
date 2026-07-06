@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 86 / 152 (56%)
+Progress: 87 / 152 (56%)
 
 ## 1. Problem definition
 
@@ -151,9 +151,9 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 - [x] Implement Loughran-McDonald lexicon scoring
 - [~] Implement custom hawkish/dovish dictionary (collect, label ~50 terms) (deferred)
-- [ ] Implement off-the-shelf sentence embeddings (all-MiniLM-L6-v2 baseline)
-- [ ] Optional: fine-tune sentiment model on labelled RBA/FOMC data
-- [ ] Cache embeddings to data/processed/embeddings/ keyed by document hash
+- [~] Implement off-the-shelf sentence embeddings (all-MiniLM-L6-v2 baseline) (deferred)
+- [~] Optional: fine-tune sentiment model on labelled RBA/FOMC data (deferred)
+- [~] Cache embeddings to data/processed/embeddings/ keyed by document hash (deferred)
 
 ### Feature pipeline
 
