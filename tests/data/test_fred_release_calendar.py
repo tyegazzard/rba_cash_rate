@@ -30,7 +30,6 @@ from rba.data.fred_release_calendar import (
     fred_publication_date,
 )
 
-
 # -----------------------------------------------------------------------------
 # _us_federal_holidays — pandas USFederalHolidayCalendar dispatch
 # -----------------------------------------------------------------------------
@@ -39,16 +38,16 @@ from rba.data.fred_release_calendar import (
 def test_us_federal_holidays_2025_contains_canonical_dates() -> None:
     holidays_2025 = _us_federal_holidays(2025)
     # 2025 observed dates per the USFederalHolidayCalendar:
-    assert date(2025, 1, 1) in holidays_2025          # New Year's Day
-    assert date(2025, 1, 20) in holidays_2025         # MLK Day (3rd Mon)
-    assert date(2025, 2, 17) in holidays_2025         # Presidents' Day (3rd Mon)
-    assert date(2025, 5, 26) in holidays_2025         # Memorial Day (last Mon)
-    assert date(2025, 6, 19) in holidays_2025         # Juneteenth
-    assert date(2025, 7, 4) in holidays_2025          # Independence Day
-    assert date(2025, 9, 1) in holidays_2025          # Labor Day (1st Mon)
-    assert date(2025, 11, 11) in holidays_2025        # Veterans Day
-    assert date(2025, 11, 27) in holidays_2025        # Thanksgiving (4th Thu)
-    assert date(2025, 12, 25) in holidays_2025        # Christmas
+    assert date(2025, 1, 1) in holidays_2025  # New Year's Day
+    assert date(2025, 1, 20) in holidays_2025  # MLK Day (3rd Mon)
+    assert date(2025, 2, 17) in holidays_2025  # Presidents' Day (3rd Mon)
+    assert date(2025, 5, 26) in holidays_2025  # Memorial Day (last Mon)
+    assert date(2025, 6, 19) in holidays_2025  # Juneteenth
+    assert date(2025, 7, 4) in holidays_2025  # Independence Day
+    assert date(2025, 9, 1) in holidays_2025  # Labor Day (1st Mon)
+    assert date(2025, 11, 11) in holidays_2025  # Veterans Day
+    assert date(2025, 11, 27) in holidays_2025  # Thanksgiving (4th Thu)
+    assert date(2025, 12, 25) in holidays_2025  # Christmas
 
 
 def test_us_federal_holidays_mondayisation_2022() -> None:
@@ -111,9 +110,7 @@ def test_next_us_business_day(trade: date, expected: date) -> None:
         ("wti_crude", date(2025, 7, 3), date(2025, 7, 7)),  # skip July 4 + weekend
     ],
 )
-def test_publication_date_per_rule(
-    series_id: str, observation: date, expected: date
-) -> None:
+def test_publication_date_per_rule(series_id: str, observation: date, expected: date) -> None:
     assert fred_publication_date(observation, series_id) == expected
 
 
@@ -263,16 +260,12 @@ def test_attach_handles_empty_frame() -> None:
 
 def test_build_calendar_includes_every_series() -> None:
     """Window must straddle a month-end so monthly-CPI rows materialise."""
-    df = build_fred_release_calendar(
-        start_date=date(2025, 5, 19), end_date=date(2025, 6, 2)
-    )
+    df = build_fred_release_calendar(start_date=date(2025, 5, 19), end_date=date(2025, 6, 2))
     assert set(df["series_id"].unique()) == set(_RULES.keys())
 
 
 def test_build_calendar_dtypes() -> None:
-    df = build_fred_release_calendar(
-        start_date=date(2025, 5, 19), end_date=date(2025, 5, 23)
-    )
+    df = build_fred_release_calendar(start_date=date(2025, 5, 19), end_date=date(2025, 5, 23))
     assert df["observation_date"].dtype == "datetime64[ns]"
     assert df["publication_date"].dtype == "datetime64[ns]"
 
@@ -280,23 +273,29 @@ def test_build_calendar_dtypes() -> None:
 def test_build_calendar_daily_rows_skip_weekends() -> None:
     df = build_fred_release_calendar(
         start_date=date(2025, 5, 17),  # Sat
-        end_date=date(2025, 5, 26),    # Mon (Memorial Day — but still in obs index)
+        end_date=date(2025, 5, 26),  # Mon (Memorial Day — but still in obs index)
     )
-    daily = df[df["series_id"].isin({
-        "us_fed_funds", "us_10y_treasury", "us_dxy_broad", "us_vix",
-        "brent_crude", "wti_crude",
-    })]
+    daily = df[
+        df["series_id"].isin(
+            {
+                "us_fed_funds",
+                "us_10y_treasury",
+                "us_dxy_broad",
+                "us_vix",
+                "brent_crude",
+                "wti_crude",
+            }
+        )
+    ]
     weekdays = daily["observation_date"].dt.weekday
     assert (weekdays < 5).all()
 
 
 def test_build_calendar_monthly_rows_are_month_ends() -> None:
-    df = build_fred_release_calendar(
-        start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
-    )
-    monthly = df[df["series_id"].isin(
-        {"us_headline_cpi", "us_core_cpi", "iron_ore_spot", "copper_spot"}
-    )]
+    df = build_fred_release_calendar(start_date=date(2025, 1, 1), end_date=date(2025, 12, 31))
+    monthly = df[
+        df["series_id"].isin({"us_headline_cpi", "us_core_cpi", "iron_ore_spot", "copper_spot"})
+    ]
     # Each unique observation_date among monthly rows must be a month-end.
     for ts in monthly["observation_date"].unique():
         ts = pd.Timestamp(ts)
@@ -308,16 +307,12 @@ def test_build_calendar_monthly_rows_are_month_ends() -> None:
 def test_build_calendar_publication_after_or_equal_observation() -> None:
     """Daily T+1 → strictly after; VIX → equal; CPI → +20 days. None
     before."""
-    df = build_fred_release_calendar(
-        start_date=date(2025, 5, 19), end_date=date(2025, 5, 23)
-    )
+    df = build_fred_release_calendar(start_date=date(2025, 5, 19), end_date=date(2025, 5, 23))
     assert (df["publication_date"] >= df["observation_date"]).all()
 
 
 def test_build_calendar_sorted_by_series_and_observation() -> None:
-    df = build_fred_release_calendar(
-        start_date=date(2025, 5, 19), end_date=date(2025, 5, 23)
-    )
+    df = build_fred_release_calendar(start_date=date(2025, 5, 19), end_date=date(2025, 5, 23))
     # Sort key (series_id, observation_date) must be monotonic-increasing.
     sort_key = list(zip(df["series_id"], df["observation_date"]))
     assert sort_key == sorted(sort_key)

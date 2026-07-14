@@ -14,9 +14,13 @@ PROJ_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_DIR = Path(__file__).resolve().parent
 FEATURES_CONFIG_PATH = CONFIG_DIR / "features.yaml"
 MODELS_CONFIG_PATH = CONFIG_DIR / "models.yaml"
+TARGETS_CONFIG_PATH = CONFIG_DIR / "targets.yaml"
 
 # Top-level ``models.yaml`` key that holds run-level defaults rather than a model.
 _MODELS_DEFAULTS_KEY = "defaults"
+# Top-level ``targets.yaml`` key that names the fallback target rather than
+# defining one (scalar ``default: three_class``, not a mapping).
+_TARGETS_DEFAULT_KEY = "default"
 
 DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -114,6 +118,60 @@ def load_model_config(name: str, path: Path = MODELS_CONFIG_PATH) -> dict[str, A
     if name == _MODELS_DEFAULTS_KEY or name not in config:
         available = sorted(k for k in config if k != _MODELS_DEFAULTS_KEY)
         raise KeyError(f"No model named {name!r} in {path}. Available: {available}.")
+    entry = dict(config[name])
+    entry.setdefault("name", name)
+    return entry
+
+
+def load_targets_config(path: Path = TARGETS_CONFIG_PATH) -> dict[str, Any]:
+    """Load the full ``targets.yaml`` mapping (every target entry + ``default``).
+
+    Thin wrapper over :func:`load_yaml_config` pinned to the project's target
+    config. Callers usually want a single entry — see :func:`load_target_config`.
+    """
+    return load_yaml_config(path)
+
+
+def load_target_config(
+    name: str | None = None, path: Path = TARGETS_CONFIG_PATH
+) -> dict[str, Any]:
+    """Load a single named target entry from ``targets.yaml``.
+
+    Mirrors :func:`load_model_config`. Returns the entry as a shallow copy with
+    ``name`` injected. Passing ``name=None`` resolves to the ``default:`` key at
+    the top of ``targets.yaml`` (e.g. ``three_class``).
+
+    Parameters
+    ----------
+    name
+        A target key in ``targets.yaml`` (e.g. ``"three_class"``). ``None``
+        resolves via the ``default:`` scalar at the top of the file.
+    path
+        Override for the config location (injectable for tests).
+
+    Returns
+    -------
+    dict
+        The target entry — ``kind`` / ``description`` / ``source_columns`` /
+        ``encoding`` / ``classes`` (as present) plus an injected ``name``.
+
+    Raises
+    ------
+    KeyError
+        If ``name`` is absent from the config (or is the ``default`` scalar).
+        The message lists the available target names.
+    """
+    config = load_targets_config(path)
+    if name is None:
+        name = config.get(_TARGETS_DEFAULT_KEY)
+        if not isinstance(name, str):
+            raise KeyError(
+                f"targets.yaml has no scalar ``default:`` key resolvable to a target name; "
+                f"pass an explicit name from {sorted(k for k in config if k != _TARGETS_DEFAULT_KEY)}."
+            )
+    if name == _TARGETS_DEFAULT_KEY or name not in config:
+        available = sorted(k for k in config if k != _TARGETS_DEFAULT_KEY)
+        raise KeyError(f"No target named {name!r} in {path}. Available: {available}.")
     entry = dict(config[name])
     entry.setdefault("name", name)
     return entry

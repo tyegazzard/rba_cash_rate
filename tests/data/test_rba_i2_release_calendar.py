@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from datetime import date
 
-import pandas as pd
 import pytest
 
 from rba.data.rba_i2_release_calendar import (
@@ -29,9 +28,9 @@ from rba.data.rba_i2_release_calendar import (
 @pytest.mark.parametrize(
     ("year", "expected"),
     [
-        (2018, date(2018, 4, 1)),   # Easter Sunday 2018
+        (2018, date(2018, 4, 1)),  # Easter Sunday 2018
         (2024, date(2024, 3, 31)),  # Easter Sunday 2024
-        (2026, date(2026, 4, 5)),   # Easter Sunday 2026
+        (2026, date(2026, 4, 5)),  # Easter Sunday 2026
         (2000, date(2000, 4, 23)),  # Easter Sunday 2000
     ],
 )
@@ -42,9 +41,9 @@ def test_easter_sunday(year: int, expected: date) -> None:
 @pytest.mark.parametrize(
     ("d", "expected"),
     [
-        (date(2026, 1, 1), date(2026, 1, 1)),    # Thu — unchanged
-        (date(2022, 1, 1), date(2022, 1, 3)),    # Sat → Mon
-        (date(2023, 1, 1), date(2023, 1, 2)),    # Sun → Mon
+        (date(2026, 1, 1), date(2026, 1, 1)),  # Thu — unchanged
+        (date(2022, 1, 1), date(2022, 1, 3)),  # Sat → Mon
+        (date(2023, 1, 1), date(2023, 1, 2)),  # Sun → Mon
         (date(2025, 12, 25), date(2025, 12, 25)),  # Thu — unchanged
     ],
 )
@@ -107,22 +106,22 @@ def test_first_business_day_of_month(year: int, month: int, expected: date) -> N
     ("ref", "expected"),
     [
         # From the 14 verified Wayback snapshots (see calendar module docstring).
-        (date(2015, 3, 31), date(2015, 4, 1)),    # 01-Apr-2015
-        (date(2015, 6, 30), date(2015, 7, 1)),    # 01-Jul-2015
-        (date(2016, 2, 29), date(2016, 3, 1)),    # 01-Mar-2016
+        (date(2015, 3, 31), date(2015, 4, 1)),  # 01-Apr-2015
+        (date(2015, 6, 30), date(2015, 7, 1)),  # 01-Jul-2015
+        (date(2016, 2, 29), date(2016, 3, 1)),  # 01-Mar-2016
         (date(2016, 10, 31), date(2016, 11, 1)),  # 01-Nov-2016
-        (date(2017, 2, 28), date(2017, 3, 1)),    # 01-Mar-2017
-        (date(2017, 5, 31), date(2017, 6, 1)),    # 01-Jun-2017
-        (date(2017, 12, 31), date(2018, 1, 2)),   # 02-Jan-2018 (Jan 1 = NY Day)
-        (date(2018, 3, 31), date(2018, 4, 3)),    # 03-Apr-2018 (Easter shift)
-        (date(2018, 4, 30), date(2018, 5, 1)),    # 01-May-2018
-        (date(2019, 2, 28), date(2019, 3, 1)),    # 01-Mar-2019
-        (date(2020, 5, 31), date(2020, 6, 1)),    # 01-Jun-2020
-        (date(2021, 2, 28), date(2021, 3, 1)),    # 01-Mar-2021
-        (date(2023, 2, 28), date(2023, 3, 1)),    # 01-Mar-2023
-        (date(2023, 5, 31), date(2023, 6, 1)),    # 01-Jun-2023
+        (date(2017, 2, 28), date(2017, 3, 1)),  # 01-Mar-2017
+        (date(2017, 5, 31), date(2017, 6, 1)),  # 01-Jun-2017
+        (date(2017, 12, 31), date(2018, 1, 2)),  # 02-Jan-2018 (Jan 1 = NY Day)
+        (date(2018, 3, 31), date(2018, 4, 3)),  # 03-Apr-2018 (Easter shift)
+        (date(2018, 4, 30), date(2018, 5, 1)),  # 01-May-2018
+        (date(2019, 2, 28), date(2019, 3, 1)),  # 01-Mar-2019
+        (date(2020, 5, 31), date(2020, 6, 1)),  # 01-Jun-2020
+        (date(2021, 2, 28), date(2021, 3, 1)),  # 01-Mar-2021
+        (date(2023, 2, 28), date(2023, 3, 1)),  # 01-Mar-2023
+        (date(2023, 5, 31), date(2023, 6, 1)),  # 01-Jun-2023
         # Current live header at the time of writing.
-        (date(2026, 4, 30), date(2026, 5, 1)),    # 01-May-2026
+        (date(2026, 4, 30), date(2026, 5, 1)),  # 01-May-2026
     ],
 )
 def test_rba_i2_publication_date_matches_wayback_samples(ref: date, expected: date) -> None:

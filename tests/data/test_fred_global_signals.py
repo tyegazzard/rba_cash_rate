@@ -33,7 +33,6 @@ from rba.data.sources.fred_global_signals import (
     _to_wide_monthly,
 )
 
-
 # Synthetic monthly FRED CSV — CPIAUCSL layout. Two real values plus a
 # trailing blank-valued row (CPI for the in-progress month not yet
 # released by BLS — common pattern at the tail of the CSV).
@@ -55,7 +54,7 @@ _DGS10_FIXTURE_CSV = (
     b"observation_date,DGS10\n"
     b"2024-11-26,4.30\n"  # Tue
     b"2024-11-27,4.28\n"  # Wed
-    b"2024-11-28,\n"      # Thu = Thanksgiving — blank in upstream
+    b"2024-11-28,\n"  # Thu = Thanksgiving — blank in upstream
     b"2024-11-29,4.18\n"  # Fri
     b"2024-12-02,4.20\n"  # Mon
     b"2024-12-24,4.59\n"  # Tue — last full day before Christmas
@@ -103,9 +102,7 @@ def test_series_registry_frequencies_are_known() -> None:
 
 
 def test_daily_and_monthly_partition_covers_all_series() -> None:
-    assert set(_DAILY_SERIES_IDS) | set(_MONTHLY_SERIES_IDS) == {
-        s.series_id for s in SERIES
-    }
+    assert set(_DAILY_SERIES_IDS) | set(_MONTHLY_SERIES_IDS) == {s.series_id for s in SERIES}
     assert set(_DAILY_SERIES_IDS) & set(_MONTHLY_SERIES_IDS) == set()
 
 
@@ -120,9 +117,7 @@ def test_validation_floor_is_1993() -> None:
 
 
 def test_parse_csv_monthly_extracts_rows() -> None:
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     df = _parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec)
     assert list(df.columns) == ["observation_date", "series_id", "value"]
     assert df["observation_date"].dtype == "datetime64[ns]"
@@ -135,9 +130,7 @@ def test_parse_csv_monthly_converts_to_month_end() -> None:
     """FRED stores monthly observations at the first day of the month
     (BLS native); the parser must convert to month-end to match the
     project-wide schema convention."""
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     df = _parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec)
     by_value = dict(zip(df["value"], df["observation_date"]))
     # 1947-01 ref → 1947-01-31 (31 days)
@@ -151,9 +144,7 @@ def test_parse_csv_monthly_converts_to_month_end() -> None:
 
 
 def test_parse_csv_monthly_stamps_logical_series_id() -> None:
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     df = _parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec)
     assert (df["series_id"] == "us_headline_cpi").all()
 
@@ -161,9 +152,7 @@ def test_parse_csv_monthly_stamps_logical_series_id() -> None:
 def test_parse_csv_monthly_drops_blank_value_rows() -> None:
     """Trailing reference months for which BLS hasn't released a value
     yet appear as blank cells in the FRED CSV and must be dropped."""
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     df = _parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec)
     assert pd.Timestamp("2026-05-31") not in df["observation_date"].tolist()
 
@@ -208,18 +197,14 @@ def test_parse_csv_daily_value_accuracy() -> None:
 
 def test_parse_csv_raises_on_missing_observation_date_column() -> None:
     bad = b"DATE,CPIAUCSL\n2024-10-01,315.301\n"
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     with pytest.raises(ValueError, match="missing expected 'observation_date'"):
         _parse_csv(bad, spec=spec)
 
 
 def test_parse_csv_raises_on_missing_value_column() -> None:
     bad = b"observation_date,SOMETHING_ELSE\n2024-10-01,315.301\n"
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     with pytest.raises(ValueError, match="missing the value column"):
         _parse_csv(bad, spec=spec)
 
@@ -229,9 +214,7 @@ def test_parse_csv_raises_on_all_blank_values() -> None:
     no real data), surface a ValueError rather than returning an empty
     frame silently — same defensive posture as the AGB-yields source."""
     bad = b"observation_date,CPIAUCSL\n2024-10-01,\n2024-11-01,\n"
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     with pytest.raises(ValueError, match="Parsed zero observations"):
         _parse_csv(bad, spec=spec)
 
@@ -239,9 +222,7 @@ def test_parse_csv_raises_on_all_blank_values() -> None:
 def test_parse_csv_raises_on_unknown_frequency() -> None:
     """A FredSeries with an unsupported frequency string must raise — a
     typo here would otherwise silently fall through to the daily path."""
-    bad_spec = FredSeries(
-        series_id="x", fred_series_id="CPIAUCSL", frequency="quarterly"
-    )
+    bad_spec = FredSeries(series_id="x", fred_series_id="CPIAUCSL", frequency="quarterly")
     with pytest.raises(ValueError, match="Unknown frequency"):
         _parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=bad_spec)
 
@@ -252,9 +233,7 @@ def test_parse_csv_raises_on_unknown_frequency() -> None:
 
 
 def test_attach_publication_dates_monthly_cpi_plus_20_days() -> None:
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     parsed = _parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec)
     out = _attach_publication_dates(parsed)
     by_obs = dict(zip(out["observation_date"], out["publication_date"]))
@@ -323,9 +302,7 @@ def test_no_future_leakage_publication_at_or_after_observation() -> None:
     """For every parsed observation across daily and monthly series,
     publication_date must be at-or-after observation_date — never before.
     VIX is the only same-day rule; everything else is strictly after."""
-    daily_spec = FredSeries(
-        series_id="us_10y_treasury", fred_series_id="DGS10", frequency="daily"
-    )
+    daily_spec = FredSeries(series_id="us_10y_treasury", fred_series_id="DGS10", frequency="daily")
     monthly_spec = FredSeries(
         series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
     )
@@ -360,9 +337,7 @@ def test_to_wide_daily_schema_and_key() -> None:
 
 
 def test_to_wide_monthly_schema_and_key() -> None:
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     long_df = _attach_publication_dates(_parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec))
     wide = _to_wide_monthly(long_df)
     assert wide.columns[0] == "reference_month_end"
@@ -382,9 +357,7 @@ def test_to_wide_daily_release_date_is_next_us_business_day() -> None:
 
 
 def test_to_wide_monthly_release_date_is_plus_20_days() -> None:
-    spec = FredSeries(
-        series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly"
-    )
+    spec = FredSeries(series_id="us_headline_cpi", fred_series_id="CPIAUCSL", frequency="monthly")
     long_df = _attach_publication_dates(_parse_csv(_CPIAUCSL_FIXTURE_CSV, spec=spec))
     wide = _to_wide_monthly(long_df)
     by_obs = dict(zip(wide["reference_month_end"], wide["release_date"]))

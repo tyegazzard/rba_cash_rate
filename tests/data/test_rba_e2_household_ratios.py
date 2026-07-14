@@ -258,13 +258,18 @@ def test_to_wide_source_populated() -> None:
     long_df = _attach_publication_dates(long_df)
     wide = _to_wide(long_df)
 
-    # 2025-Q4 is in the materialised calendar -> source != "inferred".
-    src_2025q4 = wide.loc[
-        wide["reference_quarter_end"] == pd.Timestamp("2025-12-31"), "source"
+    # 2014-Q4 is in the materialised calendar via an organic archive_org
+    # Wayback snapshot (stable across scraper reruns — the RBA CSV's
+    # in-place-update convention doesn't affect old Wayback captures). Chosen
+    # over 2025-Q4 because 2025-Q4 is now filled via ``_OVERRIDES`` (source
+    # ``inferred``) — the RBA replaced its live ``Publication date`` header
+    # with 2026-Q1 before Wayback captured the interim window.
+    src_2014q4 = wide.loc[
+        wide["reference_quarter_end"] == pd.Timestamp("2014-12-31"), "source"
     ].iloc[0]
-    assert src_2025q4 in {"rba_page", "archive_org"}
+    assert src_2014q4 in {"rba_page", "archive_org"}
 
-    # 1995-Q4 is NOT in the calendar -> source == "inferred".
+    # 1995-Q4 is NOT in the calendar -> source == "inferred" (flat-offset fallback).
     src_1995q4 = wide.loc[
         wide["reference_quarter_end"] == pd.Timestamp("1995-12-31"), "source"
     ].iloc[0]

@@ -34,7 +34,6 @@ from rba.data.sources.aud_exchange_rates import (
     _to_wide,
 )
 
-
 # Synthetic F11.1 CSV mirroring the live layout. SoMP-core series subset
 # (USD / TWI / JPY / EUR / GBP / CNY / NZD) matches the SERIES registry.
 # Date format is DD-MMM-YYYY. cp1252-encodable.
@@ -102,7 +101,9 @@ def test_parse_csv_drops_trailing_empty_row() -> None:
 
 
 def test_parse_csv_raises_on_missing_rba_series_id() -> None:
-    spec = AudExchangeRateSeries(series_id="bogus", rba_series_id="DOES_NOT_EXIST", counterparty="X")
+    spec = AudExchangeRateSeries(
+        series_id="bogus", rba_series_id="DOES_NOT_EXIST", counterparty="X"
+    )
     with pytest.raises(ValueError, match="not found among"):
         _parse_csv(_FIXTURE_CSV, spec=spec)
 
@@ -111,7 +112,9 @@ def test_parse_csv_missing_ok_returns_empty_frame() -> None:
     """For historical XLS files some series will be absent (CNY pre-2014,
     EUR pre-1999). ``missing_ok=True`` must return an empty frame with
     the correct schema rather than raising."""
-    spec = AudExchangeRateSeries(series_id="bogus", rba_series_id="DOES_NOT_EXIST", counterparty="X")
+    spec = AudExchangeRateSeries(
+        series_id="bogus", rba_series_id="DOES_NOT_EXIST", counterparty="X"
+    )
     df = _parse_csv(_FIXTURE_CSV, spec=spec, missing_ok=True)
     assert df.empty
     assert list(df.columns) == ["observation_date", "series_id", "value"]
@@ -120,7 +123,9 @@ def test_parse_csv_missing_ok_returns_empty_frame() -> None:
 
 
 def test_parse_csv_correct_values_for_anchors() -> None:
-    spec_usd = AudExchangeRateSeries(series_id="aud_usd", rba_series_id="FXRUSD", counterparty="USD")
+    spec_usd = AudExchangeRateSeries(
+        series_id="aud_usd", rba_series_id="FXRUSD", counterparty="USD"
+    )
     df = _parse_csv(_FIXTURE_CSV, spec=spec_usd)
     by_date = dict(zip(df["observation_date"], df["value"]))
     assert by_date[pd.Timestamp("2023-01-03")] == pytest.approx(0.6828)
@@ -216,7 +221,9 @@ def test_extract_series_missing_column_missing_ok() -> None:
     """When a series is absent from a historical XLS, ``missing_ok=True``
     must return an empty correctly-typed frame."""
     raw_df = _build_xls_style_raw_df()
-    spec_cny = AudExchangeRateSeries(series_id="aud_cny", rba_series_id="FXRCR", counterparty="CNY")
+    spec_cny = AudExchangeRateSeries(
+        series_id="aud_cny", rba_series_id="FXRCR", counterparty="CNY"
+    )
     df = _extract_series(raw_df, spec=spec_cny, missing_ok=True)
     assert df.empty
     assert list(df.columns) == ["observation_date", "series_id", "value"]
@@ -224,7 +231,9 @@ def test_extract_series_missing_column_missing_ok() -> None:
 
 def test_extract_series_missing_column_strict_raises() -> None:
     raw_df = _build_xls_style_raw_df()
-    spec_cny = AudExchangeRateSeries(series_id="aud_cny", rba_series_id="FXRCR", counterparty="CNY")
+    spec_cny = AudExchangeRateSeries(
+        series_id="aud_cny", rba_series_id="FXRCR", counterparty="CNY"
+    )
     with pytest.raises(ValueError, match="not found among"):
         _extract_series(raw_df, spec=spec_cny, missing_ok=False)
 
@@ -302,7 +311,9 @@ def test_no_future_leakage_publication_not_after_observation() -> None:
     after, never before."""
     frames = []
     for rba_id in ["FXRUSD", "FXRTWI", "FXRJY", "FXREUR", "FXRUKPS", "FXRCR", "FXRNZD"]:
-        spec = AudExchangeRateSeries(series_id=f"x_{rba_id}", rba_series_id=rba_id, counterparty="X")
+        spec = AudExchangeRateSeries(
+            series_id=f"x_{rba_id}", rba_series_id=rba_id, counterparty="X"
+        )
         frames.append(_parse_csv(_FIXTURE_CSV, spec=spec))
     long_df = pd.concat(frames, ignore_index=True)
     out = _attach_publication_dates(long_df)
@@ -395,9 +406,7 @@ def test_to_wide_pivot_aligns_currencies_on_trade_date() -> None:
 
 
 def test_snapshot_suffix_csv() -> None:
-    stem, suffix = _snapshot_suffix(
-        "https://www.rba.gov.au/statistics/tables/csv/f11.1-data.csv"
-    )
+    stem, suffix = _snapshot_suffix("https://www.rba.gov.au/statistics/tables/csv/f11.1-data.csv")
     assert stem == "f11.1"
     assert suffix == ".csv"
 

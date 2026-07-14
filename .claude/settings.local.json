@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:www.abs.gov.au)",
-      "WebFetch(domain:www.rba.gov.au)"
+      "WebFetch(domain:www.rba.gov.au)",
+      "Bash(uv run *)"
     ]
   }
 }

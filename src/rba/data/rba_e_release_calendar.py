@@ -134,10 +134,20 @@ _CDX_URL = (
     "&collapse=digest"
 )
 
-# Hand-verified overrides keyed by reference-quarter-end ``date``. Empty
-# by default; populate to patch a known-bad scrape or inject a value the
-# harvest missed.
-_OVERRIDES: dict[date, date] = {}
+# Hand-verified overrides keyed by reference-quarter-end ``date``. Populate to
+# patch a known-bad scrape or inject a value the harvest missed.
+#
+# ``2025-12-31 → 2026-03-27``: was the live ``Publication date`` header on the
+# RBA E2 CSV between 2026-03-27 and 2026-06-26 (when the 2026-Q1 update
+# replaced it in-place). Wayback did not crawl within that window, so the
+# scraper's ``rba_page`` sees only 2026-Q1 (published 2026-06-26). This
+# override restores the fact so :mod:`rba.data.rba_e2_household_ratios`'s
+# 2025-Q4 observation has a real publication date rather than the flat
+# fallback offset. Add further entries here as each new quarter's live-only
+# window closes without a Wayback snapshot.
+_OVERRIDES: dict[date, date] = {
+    date(2025, 12, 31): date(2026, 3, 27),
+}
 
 _HTTP_HEADERS: dict[str, str] = {
     "User-Agent": (

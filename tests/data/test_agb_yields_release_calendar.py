@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from datetime import date
 
-import pandas as pd
 import pytest
 
 from rba.data.agb_yields_release_calendar import (
@@ -56,16 +55,14 @@ def test_next_business_day(trade: date, expected: date) -> None:
     ("observation", "expected"),
     [
         # 5 Wayback F2 snapshots: each row's date + 1 BDay = header date.
-        (date(2018, 1, 18), date(2018, 1, 19)),   # Thu → Fri
-        (date(2018, 3, 22), date(2018, 3, 23)),   # Thu → Fri
-        (date(2018, 4, 23), date(2018, 4, 24)),   # Mon → Tue
-        (date(2018, 5, 24), date(2018, 5, 25)),   # Thu → Fri
-        (date(2018, 8, 8), date(2018, 8, 9)),     # Wed → Thu
+        (date(2018, 1, 18), date(2018, 1, 19)),  # Thu → Fri
+        (date(2018, 3, 22), date(2018, 3, 23)),  # Thu → Fri
+        (date(2018, 4, 23), date(2018, 4, 24)),  # Mon → Tue
+        (date(2018, 5, 24), date(2018, 5, 25)),  # Thu → Fri
+        (date(2018, 8, 8), date(2018, 8, 9)),  # Wed → Thu
     ],
 )
-def test_publication_date_matches_wayback_samples(
-    observation: date, expected: date
-) -> None:
+def test_publication_date_matches_wayback_samples(observation: date, expected: date) -> None:
     assert agb_yields_publication_date(observation) == expected
 
 
@@ -143,7 +140,7 @@ def test_build_calendar_shape_and_dtypes() -> None:
 def test_build_calendar_skips_weekends_in_observation_index() -> None:
     df = build_agb_yields_release_calendar(
         start_date=date(2026, 5, 16),  # Sat
-        end_date=date(2026, 5, 25),    # Mon
+        end_date=date(2026, 5, 25),  # Mon
     )
     weekdays = df["observation_date"].dt.weekday
     assert (weekdays < 5).all()
@@ -167,9 +164,7 @@ def test_build_calendar_publication_is_weekday() -> None:
 
 
 def test_build_calendar_unique_and_monotonic_observation_date() -> None:
-    df = build_agb_yields_release_calendar(
-        start_date=date(2020, 1, 1), end_date=date(2026, 6, 30)
-    )
+    df = build_agb_yields_release_calendar(start_date=date(2020, 1, 1), end_date=date(2026, 6, 30))
     assert df["observation_date"].is_unique
     assert df["observation_date"].is_monotonic_increasing
 

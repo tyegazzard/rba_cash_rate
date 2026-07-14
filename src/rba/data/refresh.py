@@ -56,7 +56,31 @@ import time
 from loguru import logger
 import pandas as pd
 
-from rba.data.sources import abs_cpi, rba_f11
+from rba.data.sources import (
+    abs_building_approvals,
+    abs_cpi,
+    abs_gdp,
+    abs_labour_force,
+    abs_total_value_dwellings,
+    abs_wpi,
+    agb_yields,
+    asx_200,
+    asx_ib_futures,
+    aud_exchange_rates,
+    bbsw_rates,
+    commodity_prices,
+    fred_global_signals,
+    nab_business_survey,
+    rba_d,
+    rba_e2_household_ratios,
+    rba_f11,
+    rba_i2_commodity_prices,
+    rba_media_releases,
+    rba_minutes,
+    rba_somp,
+    rba_speeches,
+    westpac_mi_consumer_sentiment,
+)
 
 # Status labels for a single source's refresh outcome.
 STATUS_SUCCEEDED = "succeeded"
@@ -103,11 +127,46 @@ class SourceSpec:
 # -----------------------------------------------------------------------------
 # The registry — single source of truth (also imported by inventory.py later).
 # rba_f11 is listed first so the F11 frame is available to any needs_f11 source
-# refreshed after it in the same run.
+# refreshed after it in the same run. Ordering after F11: numeric sources
+# (ABS macro → RBA aggregates → market/global) then text sources (three of
+# which are F11-driven, one is archive-driven).
 # -----------------------------------------------------------------------------
 REGISTRY: tuple[SourceSpec, ...] = (
+    # Target + meeting frame — must be first.
     SourceSpec(name=rba_f11.SOURCE_NAME, fetch=rba_f11.fetch),
+    # ABS macro (CPI / labour / wages / GDP / housing).
     SourceSpec(name=abs_cpi.SOURCE_NAME, fetch=abs_cpi.fetch),
+    SourceSpec(name=abs_labour_force.SOURCE_NAME, fetch=abs_labour_force.fetch),
+    SourceSpec(name=abs_wpi.SOURCE_NAME, fetch=abs_wpi.fetch),
+    SourceSpec(name=abs_gdp.SOURCE_NAME, fetch=abs_gdp.fetch),
+    SourceSpec(name=abs_building_approvals.SOURCE_NAME, fetch=abs_building_approvals.fetch),
+    SourceSpec(name=abs_total_value_dwellings.SOURCE_NAME, fetch=abs_total_value_dwellings.fetch),
+    # RBA statistical aggregates + commodity price index.
+    SourceSpec(name=rba_d.SOURCE_NAME, fetch=rba_d.fetch),
+    SourceSpec(name=rba_e2_household_ratios.SOURCE_NAME, fetch=rba_e2_household_ratios.fetch),
+    SourceSpec(name=rba_i2_commodity_prices.SOURCE_NAME, fetch=rba_i2_commodity_prices.fetch),
+    # Sentiment surveys.
+    SourceSpec(name=nab_business_survey.SOURCE_NAME, fetch=nab_business_survey.fetch),
+    SourceSpec(
+        name=westpac_mi_consumer_sentiment.SOURCE_NAME,
+        fetch=westpac_mi_consumer_sentiment.fetch,
+    ),
+    # Market data (rates / FX / equities / futures).
+    SourceSpec(name=agb_yields.SOURCE_NAME, fetch=agb_yields.fetch),
+    SourceSpec(name=bbsw_rates.SOURCE_NAME, fetch=bbsw_rates.fetch),
+    SourceSpec(name=aud_exchange_rates.SOURCE_NAME, fetch=aud_exchange_rates.fetch),
+    SourceSpec(name=asx_200.SOURCE_NAME, fetch=asx_200.fetch),
+    SourceSpec(name=asx_ib_futures.SOURCE_NAME, fetch=asx_ib_futures.fetch),
+    # Global signals + commodities via FRED.
+    SourceSpec(name=fred_global_signals.SOURCE_NAME, fetch=fred_global_signals.fetch),
+    SourceSpec(name=commodity_prices.SOURCE_NAME, fetch=commodity_prices.fetch),
+    # Text sources — three F11-driven, one archive-driven.
+    SourceSpec(
+        name=rba_media_releases.SOURCE_NAME, fetch=rba_media_releases.fetch, needs_f11=True
+    ),
+    SourceSpec(name=rba_minutes.SOURCE_NAME, fetch=rba_minutes.fetch, needs_f11=True),
+    SourceSpec(name=rba_somp.SOURCE_NAME, fetch=rba_somp.fetch, needs_f11=True),
+    SourceSpec(name=rba_speeches.SOURCE_NAME, fetch=rba_speeches.fetch),
 )
 
 REGISTRY_BY_NAME: dict[str, SourceSpec] = {spec.name: spec for spec in REGISTRY}
@@ -177,9 +236,7 @@ def select_specs(names: Sequence[str] | None) -> list[SourceSpec]:
     unknown = [n for n in names if n not in REGISTRY_BY_NAME]
     if unknown:
         valid = ", ".join(spec.name for spec in REGISTRY)
-        raise ValueError(
-            f"Unknown source(s): {', '.join(unknown)}. Registered sources: {valid}."
-        )
+        raise ValueError(f"Unknown source(s): {', '.join(unknown)}. Registered sources: {valid}.")
 
     requested = set(names)
     return [spec for spec in REGISTRY if spec.name in requested]
@@ -234,9 +291,7 @@ def refresh(
 
     for spec in specs:
         if spec.needs_f11 and f11_failed:
-            logger.warning(
-                "Skipping {!r}: its F11 dependency failed earlier this run.", spec.name
-            )
+            logger.warning("Skipping {!r}: its F11 dependency failed earlier this run.", spec.name)
             results.append(
                 SourceResult(
                     name=spec.name,
@@ -246,9 +301,7 @@ def refresh(
             )
             continue
 
-        logger.info(
-            "Refreshing {!r} (force_download={}) ...", spec.name, force_download
-        )
+        logger.info("Refreshing {!r} (force_download={}) ...", spec.name, force_download)
         start = time.perf_counter()
         try:
             df = _invoke(spec, force_download=force_download, f11_frame=f11_frame)

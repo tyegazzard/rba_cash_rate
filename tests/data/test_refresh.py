@@ -87,7 +87,38 @@ def loguru_messages():
 
 def test_registry_contains_expected_entries() -> None:
     names = [spec.name for spec in REGISTRY]
-    assert names == ["rba_f11", "abs_cpi"]
+    assert names == [
+        # Target + meeting frame — must be first.
+        "rba_f11",
+        # ABS macro (CPI / labour / wages / GDP / housing).
+        "abs_cpi",
+        "abs_labour_force",
+        "abs_wpi",
+        "abs_gdp",
+        "abs_building_approvals",
+        "abs_total_value_dwellings",
+        # RBA statistical aggregates + commodity price index.
+        "rba_d",
+        "rba_e",
+        "rba_i2_commodity_prices",
+        # Sentiment surveys.
+        "nab_business_survey",
+        "westpac_mi_consumer_sentiment",
+        # Market data (rates / FX / equities / futures).
+        "agb_yields",
+        "bbsw_rates",
+        "aud_exchange_rates",
+        "asx_200",
+        "asx_ib_futures",
+        # Global signals + commodities via FRED.
+        "fred_global_signals",
+        "commodity_prices",
+        # Text sources — F11-driven, then archive-driven.
+        "rba_media_releases",
+        "rba_minutes",
+        "rba_somp",
+        "rba_speeches",
+    ]
 
 
 def test_registry_f11_listed_first() -> None:
@@ -96,9 +127,18 @@ def test_registry_f11_listed_first() -> None:
 
 
 def test_registry_wired_sources_do_not_materialise() -> None:
-    # rba_f11 and abs_cpi write nothing to data/external/ — materialise is None.
+    # No source ships a materialise callback — each source's ``fetch`` writes its own
+    # ``data/raw/<name>/`` cache and, for those with ``__main__`` blocks, its
+    # ``data/external/<name>.<ext>`` wide artefact directly.
     assert all(spec.materialise is None for spec in REGISTRY)
-    assert all(not spec.needs_f11 for spec in REGISTRY)
+
+
+def test_registry_needs_f11_only_on_text_sources_that_read_urls_from_f11() -> None:
+    """Text sources that key their crawl on F11's ``statement_url`` / ``minutes_url``
+    columns must set ``needs_f11=True`` so the orchestrator threads the F11 frame
+    through. Speeches are archive-index-driven, not F11-driven — must be False."""
+    f11_dependents = {spec.name for spec in REGISTRY if spec.needs_f11}
+    assert f11_dependents == {"rba_media_releases", "rba_minutes", "rba_somp"}
 
 
 def test_registry_by_name_matches_registry() -> None:
@@ -218,9 +258,7 @@ def test_refresh_materialise_failure_marks_source_failed() -> None:
     def boom_materialise(df: pd.DataFrame) -> None:
         raise OSError("disk full")
 
-    summary = run_refresh(
-        [SourceSpec(name="a", fetch=_ok_fetch(), materialise=boom_materialise)]
-    )
+    summary = run_refresh([SourceSpec(name="a", fetch=_ok_fetch(), materialise=boom_materialise)])
     assert summary.exit_code == 1
     assert "disk full" in summary.failed[0].error
 
@@ -290,9 +328,7 @@ def test_refresh_dependent_self_fetches_when_f11_absent() -> None:
     # needs_f11 source run without F11 in the set: no f11_meetings injected,
     # so the source falls back to its own cached F11 (default None).
     record: list[dict] = []
-    run_refresh(
-        [SourceSpec(name="dependent", fetch=_ok_fetch(record=record), needs_f11=True)]
-    )
+    run_refresh([SourceSpec(name="dependent", fetch=_ok_fetch(record=record), needs_f11=True)])
     assert "f11_meetings" not in record[0]
 
 
@@ -388,9 +424,7 @@ def test_main_runs_selected_subset(monkeypatch) -> None:
         SourceSpec(name="abs_cpi", fetch=make("abs_cpi")),
     )
     monkeypatch.setattr(refresh, "REGISTRY", stub_registry)
-    monkeypatch.setattr(
-        refresh, "REGISTRY_BY_NAME", {s.name: s for s in stub_registry}
-    )
+    monkeypatch.setattr(refresh, "REGISTRY_BY_NAME", {s.name: s for s in stub_registry})
 
     code = main(["--source", "abs_cpi"])
     assert code == 0
@@ -401,9 +435,7 @@ def test_main_threads_no_download(monkeypatch) -> None:
     record: list[dict] = []
     stub_registry = (SourceSpec(name="abs_cpi", fetch=_ok_fetch(record=record)),)
     monkeypatch.setattr(refresh, "REGISTRY", stub_registry)
-    monkeypatch.setattr(
-        refresh, "REGISTRY_BY_NAME", {s.name: s for s in stub_registry}
-    )
+    monkeypatch.setattr(refresh, "REGISTRY_BY_NAME", {s.name: s for s in stub_registry})
 
     main(["--no-download"])
     assert record[0]["force_download"] is False
@@ -412,9 +444,7 @@ def test_main_threads_no_download(monkeypatch) -> None:
 def test_main_nonzero_exit_on_failure(monkeypatch) -> None:
     stub_registry = (SourceSpec(name="abs_cpi", fetch=_boom_fetch()),)
     monkeypatch.setattr(refresh, "REGISTRY", stub_registry)
-    monkeypatch.setattr(
-        refresh, "REGISTRY_BY_NAME", {s.name: s for s in stub_registry}
-    )
+    monkeypatch.setattr(refresh, "REGISTRY_BY_NAME", {s.name: s for s in stub_registry})
     assert main([]) == 1
 
 

@@ -54,21 +54,10 @@ from sklearn.feature_selection import mutual_info_classif
 from rba.config import RANDOM_SEED, REPORTS_DIR, load_features_config
 from rba.data import align
 from rba.features import versioning
-from rba.features.build import FEATURES_PARQUET_PATH, build_features_from_cache
-
-_MEETING_KEY = "meeting_date"
+from rba.features.build import FEATURES_PARQUET_PATH, build_features_from_cache, feature_columns
 
 # The continuous Δ-rate target (targets.yaml delta_regression) — correlation lens.
 _CHANGE_TARGET = "rate_change_bps"
-# The post-meeting level outcome (targets.yaml level_regression) — never a feature.
-_LEVEL_OUTCOME = "new_rate_pct"
-
-# Meeting-metadata columns that are not features (mostly non-numeric, but named
-# explicitly for robustness) plus the two contemporaneous outcome columns.
-_NON_FEATURE_COLUMNS: frozenset[str] = frozenset(
-    {_MEETING_KEY, "effective_date", "statement_url", "minutes_url"}
-)
-_EXCLUDED_AS_FEATURE: frozenset[str] = _NON_FEATURE_COLUMNS | {_CHANGE_TARGET, _LEVEL_OUTCOME}
 
 # A feature is treated as discrete for MI if it is integer-valued with at most this
 # many distinct values (regime dummies, ``_is_missing`` flags, small counts).
@@ -103,9 +92,7 @@ def derive_targets(features: pd.DataFrame) -> dict[str, pd.Series]:
     """
     change = pd.to_numeric(features[_CHANGE_TARGET], errors="coerce").astype("float64")
     sign = np.sign(change.to_numpy())
-    direction = pd.array(
-        [pd.NA if math.isnan(s) else int(s) for s in sign], dtype="Int64"
-    )
+    direction = pd.array([pd.NA if math.isnan(s) else int(s) for s in sign], dtype="Int64")
     return {
         "change_bps": change,
         "direction": pd.Series(direction, index=features.index, name="direction"),
@@ -115,16 +102,14 @@ def derive_targets(features: pd.DataFrame) -> dict[str, pd.Series]:
 def candidate_features(features: pd.DataFrame) -> list[str]:
     """Numeric feature columns, excluding metadata + the contemporaneous outcomes.
 
-    Non-numeric columns (dates / URLs) and the two target columns
-    (``rate_change_bps`` / ``new_rate_pct``) are dropped; everything else numeric
-    — levels, companions, regime dummies, lags, rolling, changes, target lags,
+    Thin delegate to the canonical :func:`rba.features.build.feature_columns` (the
+    single source of truth for the model-input matrix) — kept as the §5 report's
+    entry point. Non-numeric columns (dates / URLs) and the two outcome columns
+    (``rate_change_bps`` / ``new_rate_pct``) are dropped; everything else numeric —
+    levels, companions, regime dummies, lags, rolling, changes, target lags,
     ``prior_rate_pct`` — is a candidate.
     """
-    return [
-        col
-        for col in features.columns
-        if col not in _EXCLUDED_AS_FEATURE and pd.api.types.is_numeric_dtype(features[col])
-    ]
+    return feature_columns(features)
 
 
 def _feature_group(column: str) -> str:
@@ -283,7 +268,12 @@ def load_features(path: Path = FEATURES_PARQUET_PATH) -> pd.DataFrame:
     """
     if path.exists():
         features = pd.read_parquet(path)
-        logger.info("Loaded feature frame from {} ({} meetings × {} cols).", path, len(features), features.shape[1])
+        logger.info(
+            "Loaded feature frame from {} ({} meetings × {} cols).",
+            path,
+            len(features),
+            features.shape[1],
+        )
         return features
     logger.warning("Feature parquet absent at {}; rebuilding from cache.", path)
     return build_features_from_cache()

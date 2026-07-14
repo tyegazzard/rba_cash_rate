@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 91 / 153 (59%)
+Progress: 115 / 157 (73%)
 
 ## 1. Problem definition
 
@@ -165,38 +165,44 @@ Single generated source of truth: what data we have, where it lives, when it was
 ## 6. Baseline models
 
 - [x] Implement Model protocol in src/rba/models/base.py
-- [ ] Implement majority-class baseline
-- [ ] Implement persistence baseline (predict last decision)
-- [ ] Implement Taylor rule baseline (with literature default coefficients, then fitted)
-- [ ] Implement market-implied baseline (from ASX 30-day futures)
-- [ ] All baselines pass the same evaluation harness as ML models
-- [ ] Document baseline performance as floor for all subsequent work
+- [x] Implement majority-class baseline
+- [x] Implement persistence baseline (predict last decision)
+- [x] Implement Taylor rule baseline (with literature default coefficients, then fitted)
+- [x] Implement market-implied baseline (from ASX 30-day futures)
+- [x] All baselines pass the same evaluation harness as ML models
+- [x] Document baseline performance as floor for all subsequent work
 
 ## 7. Model development
 
 ### Validation harness
 
-- [ ] Implement WalkForwardSplit in src/rba/validation/cv.py
-- [ ] Implement metrics module: accuracy, balanced accuracy, macro-F1, log-loss, Brier, confusion matrix
-- [ ] Implement calibration plots (reliability diagrams)
-- [ ] Implement hit-rate-vs-market metric
-- [ ] Wrap evaluation in a function that logs everything to MLflow
+- [x] Implement WalkForwardSplit in src/rba/validation/cv.py
+- [x] Implement metrics module: accuracy, balanced accuracy, macro-F1, log-loss, Brier, confusion matrix
+- [x] Implement calibration plots (reliability diagrams)
+- [x] Implement hit-rate-vs-market metric
+- [x] Wrap evaluation in a function that logs everything to MLflow
 
 ### Models
 
-- [ ] Logistic regression (baseline ML model)
-- [ ] L1 / L2 regularised logistic regression
-- [ ] Random forest
-- [ ] XGBoost
-- [ ] LightGBM
-- [ ] SVM (linear + RBF kernels)
-- [ ] Ordinal logistic regression (mord)
-- [ ] MLP (sklearn or small PyTorch)
-- [ ] xRFM
-- [ ] Each model registered in src/rba/config/models.yaml with default + search space
+- [x] Logistic regression (baseline ML model)
+- [x] L1 / L2 regularised logistic regression
+- [x] Random forest
+- [x] XGBoost
+- [x] LightGBM
+- [x] SVM (linear + RBF kernels)
+- [x] Ordinal logistic regression (mord)
+- [x] MLP (sklearn or small PyTorch)
+- [~] xRFM (deferred — stub only; see CONTEXT.md)
+- [x] Each model registered in src/rba/config/models.yaml with default + search space
+
+### Feature matrix & leakage guard
+
+- [x] Wire a canonical leakage-free feature matrix into the eval/tuning harness
+- [x] Leakage regression test: outcome columns absent from X, no trivially-perfect accuracy on the clean set
+
 
 ### Tuning & imbalance
-
+- [x] Feature selection / dimensionality reduction for p≫n, fit per-fold in walk-forward CV
 - [ ] Use class_weight='balanced' as default for classifiers
 - [ ] Run threshold-tuning experiments per classifier
 - [ ] Run SMOTE experiment (compare against class-weight)

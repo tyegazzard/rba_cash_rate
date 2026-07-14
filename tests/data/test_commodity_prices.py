@@ -32,7 +32,6 @@ from rba.data.sources.commodity_prices import (
     _to_wide_monthly,
 )
 
-
 # Synthetic monthly FRED CSV — PIORECRUSDM layout. Three real values
 # plus a defensive trailing blank row (IMF restates monthly, so the
 # trailing month occasionally appears as a blank reservation cell).
@@ -54,7 +53,7 @@ _DCOILBRENTEU_FIXTURE_CSV = (
     b"observation_date,DCOILBRENTEU\n"
     b"2024-11-26,73.45\n"  # Tue
     b"2024-11-27,72.83\n"  # Wed
-    b"2024-11-28,\n"       # Thu = Thanksgiving — blank in upstream
+    b"2024-11-28,\n"  # Thu = Thanksgiving — blank in upstream
     b"2024-11-29,72.94\n"  # Fri
     b"2024-12-02,71.83\n"  # Mon
     b"2024-12-24,72.63\n"  # Tue — last full day before Christmas
@@ -105,9 +104,7 @@ def test_series_registry_frequencies_are_known() -> None:
 
 
 def test_daily_and_monthly_partition_covers_all_series() -> None:
-    assert set(_DAILY_SERIES_IDS) | set(_MONTHLY_SERIES_IDS) == {
-        s.series_id for s in SERIES
-    }
+    assert set(_DAILY_SERIES_IDS) | set(_MONTHLY_SERIES_IDS) == {s.series_id for s in SERIES}
     assert set(_DAILY_SERIES_IDS) & set(_MONTHLY_SERIES_IDS) == set()
 
 
@@ -241,9 +238,7 @@ def test_parse_csv_raises_on_all_blank_values() -> None:
 
 def test_parse_csv_raises_on_unknown_frequency() -> None:
     """A CommoditySeries with an unsupported frequency string must raise."""
-    bad_spec = CommoditySeries(
-        series_id="x", fred_series_id="PIORECRUSDM", frequency="quarterly"
-    )
+    bad_spec = CommoditySeries(series_id="x", fred_series_id="PIORECRUSDM", frequency="quarterly")
     with pytest.raises(ValueError, match="Unknown frequency"):
         _parse_csv(_PIORECRUSDM_FIXTURE_CSV, spec=bad_spec)
 

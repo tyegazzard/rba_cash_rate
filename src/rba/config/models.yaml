@@ -190,6 +190,25 @@ xrfm_classifier:
   search_space: {}
 
 # ---------------------------------------------------------------------------
+# Feature-selection meta-model (p >> n)
+# Wraps a base model with per-fold top-k filter selection — fit on the training
+# fold only, so it is leakage-safe inside walk-forward CV. Illustrative default
+# wraps XGBoost; the tuner varies k / method / the base model.
+# ---------------------------------------------------------------------------
+selecting_xgboost:
+  module: rba.models.selection
+  class: SelectingModel
+  task: classification
+  description: "Per-fold top-k feature selection wrapped around a base model."
+  default:
+    base_model_name: xgboost_classifier
+    k: 100
+    method: mutual_info
+  search_space:
+    k: { type: int, low: 20, high: 400 }
+    method: { type: categorical, choices: [mutual_info, f_classif] }
+
+# ---------------------------------------------------------------------------
 # Ensembles
 # ---------------------------------------------------------------------------
 voting_ensemble:

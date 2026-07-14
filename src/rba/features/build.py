@@ -64,6 +64,7 @@ import pandas as pd
 
 from rba.config import PROCESSED_DATA_DIR, load_features_config
 from rba.data import align
+from rba.data.targets import build_target
 from rba.features import versioning
 from rba.features.changes import build_changes
 from rba.features.lags import build_lags
@@ -97,6 +98,110 @@ PASSTHROUGH_GROUPS: tuple[str, ...] = ("levels", "regime")
 # scores) is tracked separately; the per-document scores remain a standalone
 # artifact until then.
 DEFERRED_GROUPS: tuple[str, ...] = ("text",)
+
+
+# -----------------------------------------------------------------------------
+# The model-input feature matrix — the canonical leakage-free X definition.
+# -----------------------------------------------------------------------------
+# Meeting-metadata columns that are never model inputs (mostly non-numeric, named
+# explicitly for robustness): the meeting key, the effective date, and the two
+# text-source URL columns.
+NON_FEATURE_COLUMNS: frozenset[str] = frozenset(
+    {_MEETING_KEY, "effective_date", "statement_url", "minutes_url"}
+)
+
+# The CONTEMPORANEOUS meeting-outcome columns — the decision itself. Including any
+# of these in X is trivial self-leakage (a model recovers ``sign(rate_change_bps)``
+# exactly). This is the union of every ``source_columns`` entry in ``targets.yaml``
+# (``rate_change_bps`` for the classification / Δ targets, ``new_rate_pct`` for the
+# level target); ``tests/features/test_feature_matrix.py`` guards that this set
+# stays in sync with ``targets.yaml``. NOTE: ``prior_rate_pct`` (the standing rate
+# going *into* the meeting) and the ``*_lag_*`` past-decision columns are known
+# before the meeting and are RETAINED as legitimate features.
+OUTCOME_COLUMNS: frozenset[str] = frozenset({"rate_change_bps", "new_rate_pct"})
+
+# Everything the feature matrix excludes: metadata + contemporaneous outcomes.
+NON_MODEL_COLUMNS: frozenset[str] = NON_FEATURE_COLUMNS | OUTCOME_COLUMNS
+
+
+def feature_columns(frame: pd.DataFrame) -> list[str]:
+    """Canonical leakage-free model-input columns of a meeting frame.
+
+    Returns every **numeric** column except the meeting metadata
+    (:data:`NON_FEATURE_COLUMNS` — dates / URLs, also non-numeric) and the
+    contemporaneous outcome columns (:data:`OUTCOME_COLUMNS` — the decision
+    itself, self-leakage). ``prior_rate_pct`` and the ``*_lag_*`` past-decision
+    columns are known before the meeting and are retained.
+
+    This is the **single source of truth** for "what is X" across the §7/§8
+    evaluation + tuning harness: callers must build ``X`` from here rather than an
+    ad-hoc ``select_dtypes`` so no outcome column can silently leak in. The §5
+    :func:`rba.features.importance.candidate_features` delegates here too.
+
+    Parameters
+    ----------
+    frame
+        A meeting-indexed frame (``master.parquet`` / ``features.parquet`` or any
+        frame carrying the same columns).
+
+    Returns
+    -------
+    list[str]
+        The feature column names, in ``frame`` order.
+
+    Shapes
+    ------
+    frame: (n_meetings, n_columns) -> list of length n_features.
+    """
+    return [
+        col
+        for col in frame.columns
+        if col not in NON_MODEL_COLUMNS and pd.api.types.is_numeric_dtype(frame[col])
+    ]
+
+
+def feature_matrix(frame: pd.DataFrame) -> pd.DataFrame:
+    """The leakage-free feature sub-frame ``frame[feature_columns(frame)]`` (a copy)."""
+    return frame.loc[:, feature_columns(frame)].copy()
+
+
+def build_xy(
+    frame: pd.DataFrame,
+    target_cfg: Mapping[str, Any],
+    *,
+    int_labels: bool = False,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Assemble the aligned, leakage-free ``(X, y)`` for a target.
+
+    Builds ``y`` via :func:`rba.data.targets.build_target` (which drops rows the
+    target can't be formed on), selects the leakage-free :func:`feature_columns`,
+    and aligns ``X`` to the surviving ``y.index``. This is the canonical entry
+    point the evaluation / tuning harness uses to turn a feature frame + a
+    ``targets.yaml`` entry into model inputs — no ad-hoc column selection, so an
+    outcome column cannot slip into ``X``.
+
+    Parameters
+    ----------
+    frame
+        Meeting-indexed feature frame (``features.parquet`` or ``master.parquet``).
+    target_cfg
+        A target entry from :func:`rba.config.load_target_config`.
+    int_labels
+        Forwarded to :func:`~rba.data.targets.build_target` (classification only —
+        return the integer label encoding instead of string labels).
+
+    Returns
+    -------
+    (X, y) : tuple[pandas.DataFrame, pandas.Series]
+        ``X`` carries only leakage-free numeric features, aligned to ``y.index``.
+
+    Shapes
+    ------
+    frame: (n_meetings, n_columns) -> X: (n_kept, n_features), y: (n_kept,).
+    """
+    y = build_target(frame, target_cfg, int_labels=int_labels)
+    x = frame.loc[y.index, feature_columns(frame)].copy()
+    return x, y
 
 
 # -----------------------------------------------------------------------------
@@ -233,7 +338,12 @@ def load_master(path: Path = align.MASTER_PARQUET_PATH) -> pd.DataFrame:
     """
     if path.exists():
         master = pd.read_parquet(path)
-        logger.info("Loaded master frame from {} ({} meetings × {} cols).", path, len(master), master.shape[1])
+        logger.info(
+            "Loaded master frame from {} ({} meetings × {} cols).",
+            path,
+            len(master),
+            master.shape[1],
+        )
         return master
     logger.warning("Master parquet absent at {}; rebuilding from cached raw.", path)
     return align.build_master_from_cache()

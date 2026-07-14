@@ -1,5 +1,14 @@
-# Data
-/data/
+# Data — ignore everything under /data/ EXCEPT the small hand-scraped
+# release-date calendars, which are the project's ground-truth "what was
+# knowable when" tables and are committed so CI + fresh clones don't need to
+# re-scrape ABS / RBA sites just to run the point-in-time tests. Regenerate
+# via ``uv run python -m rba.data.<name>_release_calendar``. (Git doesn't
+# traverse excluded directories, so the /data/ block has to be lifted then
+# re-applied at each level down to the exception.)
+/data/*
+!/data/external/
+/data/external/*
+!/data/external/*_release_dates.csv
 
 # MLflow tracking store (regenerated locally; not source of truth)
 /mlruns/

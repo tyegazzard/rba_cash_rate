@@ -35,7 +35,6 @@ from rba.data.sources.bbsw_rates import (
     _to_wide,
 )
 
-
 # Synthetic F1 CSV mirroring the live layout. Three BBSW tenors plus a
 # decoy column (Cash Rate Target) to verify Series-ID-row column lookup
 # works against a sibling column. cp1252-encodable; DD-MMM-YYYY dates.
@@ -423,9 +422,7 @@ def test_to_wide_pivot_aligns_tenors_on_trade_date() -> None:
 
 
 def test_snapshot_suffix_csv() -> None:
-    stem, suffix = _snapshot_suffix(
-        "https://www.rba.gov.au/statistics/tables/csv/f1-data.csv"
-    )
+    stem, suffix = _snapshot_suffix("https://www.rba.gov.au/statistics/tables/csv/f1-data.csv")
     assert stem == "f1"
     assert suffix == ".csv"
 
