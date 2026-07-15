@@ -219,11 +219,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
     in_window = merged["observation_date"] >= _CALENDAR_VALIDATION_FLOOR
     unmatched_in_window = merged[in_window & merged["publication_date"].isna()]
     if not unmatched_in_window.empty:
-        sample = (
-            unmatched_in_window[["observation_date", "series_id"]]
-            .head()
-            .to_dict("records")
-        )
+        sample = unmatched_in_window[["observation_date", "series_id"]].head().to_dict("records")
         raise ValueError(
             f"{len(unmatched_in_window)} GDP observation(s) on/after "
             f"{_CALENDAR_VALIDATION_FLOOR.date()} are missing a publication "
@@ -334,9 +330,7 @@ def _parse(json_bytes: bytes, *, series_id: str) -> pd.DataFrame:
     structure = payload["data"]["structures"][0]
     obs_dims = structure["dimensions"]["observation"]
 
-    time_index = next(
-        i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD"
-    )
+    time_index = next(i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD")
     time_codes = [v["id"] for v in obs_dims[time_index]["values"]]
 
     observations = payload["data"]["dataSets"][0]["observations"]

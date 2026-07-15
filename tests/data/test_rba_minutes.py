@@ -174,9 +174,7 @@ def test_build_release_calendar_empty() -> None:
 
 def test_parse_modern_board_extracts_canonical_fields() -> None:
     parsed = _parse(_fixture_modern_board(), decision_date=pd.Timestamp("2024-02-06"))
-    assert parsed["title"] == (
-        "Minutes of the Monetary Policy Meeting of the Reserve Bank Board"
-    )
+    assert parsed["title"] == ("Minutes of the Monetary Policy Meeting of the Reserve Bank Board")
     assert parsed["dc_date"] == pd.Timestamp("2024-02-20")
     # Sydney line + 3 headings + 4 paragraphs (related-links / tile excluded).
     assert parsed["paragraphs"][0].startswith("Sydney")

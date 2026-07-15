@@ -247,9 +247,7 @@ def fetch(*, force_download: bool = True, start_period: str = "1983-07") -> pd.D
         frames.append(df)
 
     # RBA H3 — one CSV file shared across both H3 series we extract.
-    h3_path, h3_entry, h3_bytes = _resolve_h3_snapshot(
-        dest_dir, force_download=force_download
-    )
+    h3_path, h3_entry, h3_bytes = _resolve_h3_snapshot(dest_dir, force_download=force_download)
     h3_obs_total = 0
     for h3_series in RBA_H3_SERIES:
         df = _parse_h3(h3_bytes, spec=h3_series)
@@ -281,9 +279,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
         how="left",
     )
 
-    pre_floor = merged["publication_date"].isna() & (
-        merged["observation_date"] < _SCRAPE_FLOOR
-    )
+    pre_floor = merged["publication_date"].isna() & (merged["observation_date"] < _SCRAPE_FLOOR)
     merged.loc[pre_floor, "publication_date"] = merged.loc[
         pre_floor, "observation_date"
     ] + pd.Timedelta(days=_FLAT_OFFSET_DAYS)
@@ -422,9 +418,7 @@ def _parse_sdmx(json_bytes: bytes, *, series_id: str) -> pd.DataFrame:
     structure = payload["data"]["structures"][0]
     obs_dims = structure["dimensions"]["observation"]
 
-    time_index = next(
-        i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD"
-    )
+    time_index = next(i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD")
     time_codes = [v["id"] for v in obs_dims[time_index]["values"]]
 
     observations = payload["data"]["dataSets"][0]["observations"]
@@ -460,9 +454,7 @@ def _parse_h3(csv_bytes: bytes, *, spec: RbaH3Series) -> pd.DataFrame:
     Series ID), data rows from row 10+. The "Title" header at row index 1
     is used as the column header.
     """
-    raw_df = pd.read_csv(
-        io.BytesIO(csv_bytes), header=1, low_memory=False, skipinitialspace=False
-    )
+    raw_df = pd.read_csv(io.BytesIO(csv_bytes), header=1, low_memory=False, skipinitialspace=False)
 
     sid_row = raw_df[raw_df["Title"] == "Series ID"]
     if sid_row.empty:
@@ -485,9 +477,7 @@ def _parse_h3(csv_bytes: bytes, *, spec: RbaH3Series) -> pd.DataFrame:
             f"in H3 CSV; series may have been renamed or removed."
         )
 
-    parsed_dates = pd.to_datetime(
-        raw_df["Title"], format="%d/%m/%Y", errors="coerce"
-    )
+    parsed_dates = pd.to_datetime(raw_df["Title"], format="%d/%m/%Y", errors="coerce")
     data_mask = parsed_dates.notna()
 
     df = pd.DataFrame(

@@ -90,7 +90,13 @@ def test_derive_targets_sign_encoding() -> None:
 # -----------------------------------------------------------------------------
 def test_candidate_features_excludes_targets_and_metadata() -> None:
     cols = candidate_features(_features())
-    for excluded in ("meeting_date", "effective_date", "statement_url", "rate_change_bps", "new_rate_pct"):
+    for excluded in (
+        "meeting_date",
+        "effective_date",
+        "statement_url",
+        "rate_change_bps",
+        "new_rate_pct",
+    ):
         assert excluded not in cols
     for included in ("prior_rate_pct", "signal", "noise", "cpi", "regime_covid", "cpi_is_missing"):
         assert included in cols
@@ -161,7 +167,14 @@ def test_empty_when_no_target_rows() -> None:
     frame["rate_change_bps"] = np.nan
     table = feature_importance(frame)
     assert table.empty
-    assert list(table.columns) == ["feature", "group", "n_obs", "pearson_r", "spearman_r", "mutual_info"]
+    assert list(table.columns) == [
+        "feature",
+        "group",
+        "n_obs",
+        "pearson_r",
+        "spearman_r",
+        "mutual_info",
+    ]
 
 
 def test_min_obs_override_enables_mi() -> None:

@@ -376,9 +376,7 @@ def _parse(csv_bytes: bytes, *, spec: AgbYieldSeries) -> pd.DataFrame:
             "in F2 CSV; series may have been renamed or removed."
         )
 
-    parsed_dates = pd.to_datetime(
-        raw_df["Title"], format="%d-%b-%Y", errors="coerce"
-    )
+    parsed_dates = pd.to_datetime(raw_df["Title"], format="%d-%b-%Y", errors="coerce")
     data_mask = parsed_dates.notna()
 
     df = pd.DataFrame(
@@ -445,9 +443,7 @@ def _to_wide(long_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     column_order = (
-        ["trade_date"]
-        + [c for c in _WIDE_COLUMN_ORDER if c in wide.columns]
-        + ["release_date"]
+        ["trade_date"] + [c for c in _WIDE_COLUMN_ORDER if c in wide.columns] + ["release_date"]
     )
     return wide[column_order].sort_values("trade_date").reset_index(drop=True)
 

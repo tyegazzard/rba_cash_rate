@@ -89,9 +89,7 @@ def _write_full_raw_tree(raw_root: Path) -> None:
 def _write_metadata(raw_root: Path, name: str, payload: object) -> None:
     source_dir = raw_root / name
     source_dir.mkdir(parents=True, exist_ok=True)
-    (source_dir / inventory.METADATA_FILENAME).write_text(
-        json.dumps(payload), encoding="utf-8"
-    )
+    (source_dir / inventory.METADATA_FILENAME).write_text(json.dumps(payload), encoding="utf-8")
 
 
 @pytest.fixture

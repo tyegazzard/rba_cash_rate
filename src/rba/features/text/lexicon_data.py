@@ -158,7 +158,9 @@ def _compact_from_master_csv(raw: bytes) -> pd.DataFrame:
     column per category.
     """
     master = pd.read_csv(io.BytesIO(raw))
-    missing = [c for c in (_WORD_COLUMN, *_MASTER_COLUMN_BY_CATEGORY.values()) if c not in master.columns]
+    missing = [
+        c for c in (_WORD_COLUMN, *_MASTER_COLUMN_BY_CATEGORY.values()) if c not in master.columns
+    ]
     if missing:
         raise ValueError(
             f"LM master CSV missing expected column(s): {missing}. "

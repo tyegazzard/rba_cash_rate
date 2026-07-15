@@ -557,7 +557,9 @@ def _parse_simple_series(
         for spec in record.series:
             entry = record.resolve(spec, entries)
             if entry is None:
-                logger.warning("{}: series {!r} has no metadata row; skipping.", name, spec.series_id)
+                logger.warning(
+                    "{}: series {!r} has no metadata row; skipping.", name, spec.series_id
+                )
                 continue
             raw_bytes = inventory._read_snapshot(raw_root, name, entry, cache)
             if raw_bytes is None:
@@ -581,9 +583,7 @@ def _parse_splice_series(
     """
     module = records[0].module
     # XLS archives first, live CSV last (so keep='last' prefers the live vintage).
-    ordered = sorted(
-        entries, key=lambda e: str(e.get("snapshot_filename", "")).endswith(".csv")
-    )
+    ordered = sorted(entries, key=lambda e: str(e.get("snapshot_filename", "")).endswith(".csv"))
     frames: list[pd.DataFrame] = []
     for record in records:
         for spec in record.series:

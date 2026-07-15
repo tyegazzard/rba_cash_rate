@@ -41,7 +41,9 @@ def loguru_messages():
         logger.remove(sink_id)
 
 
-def _master(values: list[float], name: str = "cpi", *, dates: list[str] | None = None) -> pd.DataFrame:
+def _master(
+    values: list[float], name: str = "cpi", *, dates: list[str] | None = None
+) -> pd.DataFrame:
     if dates is None:
         meeting_date = pd.date_range("2020-01-01", periods=len(values), freq="MS")
     else:

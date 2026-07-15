@@ -56,7 +56,9 @@ def test_hash_config_key_order_independent() -> None:
 
 
 def test_hash_config_changes_with_content() -> None:
-    assert hash_config(_config(lags={"enabled": True, "horizons_meetings": [1]})) != hash_config(_config())
+    assert hash_config(_config(lags={"enabled": True, "horizons_meetings": [1]})) != hash_config(
+        _config()
+    )
 
 
 def test_hash_config_ignores_pinned_version_field() -> None:

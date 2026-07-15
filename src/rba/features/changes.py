@@ -127,7 +127,9 @@ def _resolve_columns(master: pd.DataFrame, requested: Sequence[str], kind: str) 
     resolved: list[str] = []
     for col in requested:
         if col not in present:
-            logger.warning("Changes[{}]: configured column {!r} absent from frame; skipping.", kind, col)
+            logger.warning(
+                "Changes[{}]: configured column {!r} absent from frame; skipping.", kind, col
+            )
             continue
         if not _is_level_column(col):
             logger.warning("Changes[{}]: column {!r} is not a level series; skipping.", kind, col)
@@ -209,15 +211,12 @@ def build_changes(
     ------
     Returns: (n_meetings, 1 + (n_diff + n_pct) * len(horizons) + n_yoy).
     """
-    need_config = (
-        config is None
-        and (
-            horizons is None
-            or abs_diff_columns is None
-            or pct_change_columns is None
-            or yoy_columns is None
-            or yoy_days is None
-        )
+    need_config = config is None and (
+        horizons is None
+        or abs_diff_columns is None
+        or pct_change_columns is None
+        or yoy_columns is None
+        or yoy_days is None
     )
     if need_config:
         config = load_features_config()

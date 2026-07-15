@@ -176,6 +176,4 @@ if __name__ == "__main__":
     dest = EXTERNAL_DATA_DIR / "agb_yields_release_dates.csv"
     dest.parent.mkdir(parents=True, exist_ok=True)
     calendar_df.to_csv(dest, index=False)
-    logger.info(
-        "Wrote AGB yields release calendar ({} rows) to {}", len(calendar_df), dest
-    )
+    logger.info("Wrote AGB yields release calendar ({} rows) to {}", len(calendar_df), dest)

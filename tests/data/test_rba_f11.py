@@ -117,8 +117,10 @@ def test_parse_preserves_change_strings_verbatim() -> None:
 
 def test_parse_preserves_range_rate_strings_verbatim() -> None:
     df = _parse(_FIXTURE_HTML)
-    assert df.loc[df["observation_date"] == pd.Timestamp("1990-01-23"),
-                  "new_cash_rate_raw"].iloc[0] == "17.00 to 17.50"
+    assert (
+        df.loc[df["observation_date"] == pd.Timestamp("1990-01-23"), "new_cash_rate_raw"].iloc[0]
+        == "17.00 to 17.50"
+    )
 
 
 def test_parse_extracts_links_when_present() -> None:

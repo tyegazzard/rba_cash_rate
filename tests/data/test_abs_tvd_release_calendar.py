@@ -111,15 +111,13 @@ def test_source_values_are_in_enum() -> None:
     ("ref_qe", "expected_pub"),
     [
         (date(2025, 12, 31), date(2026, 3, 10)),  # 2nd Tuesday of Mar
-        (date(2025, 9, 30), date(2025, 12, 2)),   # 1st Tuesday of Dec
+        (date(2025, 9, 30), date(2025, 12, 2)),  # 1st Tuesday of Dec
         (date(2024, 12, 31), date(2025, 3, 11)),  # 2nd Tuesday of Mar
-        (date(2023, 9, 30), date(2023, 12, 5)),   # 1st Tuesday of Dec
-        (date(2022, 3, 31), date(2022, 6, 14)),   # 2nd Tuesday of Jun — earliest scraped
+        (date(2023, 9, 30), date(2023, 12, 5)),  # 1st Tuesday of Dec
+        (date(2022, 3, 31), date(2022, 6, 14)),  # 2nd Tuesday of Jun — earliest scraped
     ],
 )
-def test_tvd_publication_date_known_quarters(
-    ref_qe: date, expected_pub: date
-) -> None:
+def test_tvd_publication_date_known_quarters(ref_qe: date, expected_pub: date) -> None:
     assert tvd_publication_date(ref_qe) == expected_pub
 
 

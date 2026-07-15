@@ -340,9 +340,7 @@ def fetch(*, force_download: bool = True) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     if not df.empty:
-        df["publication_date"] = pd.to_datetime(df["publication_date"]).astype(
-            "datetime64[ns]"
-        )
+        df["publication_date"] = pd.to_datetime(df["publication_date"]).astype("datetime64[ns]")
 
     _validate_cross_check(df, targets)
 
@@ -538,9 +536,7 @@ def _download(
 def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
     metadata_path = dest_dir / "_metadata.json"
     metadata_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    logger.info(
-        "Wrote provenance manifest ({} entries) to {}", len(manifest), metadata_path
-    )
+    logger.info("Wrote provenance manifest ({} entries) to {}", len(manifest), metadata_path)
 
 
 class _ParsedSpeech(TypedDict):
@@ -584,15 +580,13 @@ def _parse(html: bytes, *, speech_id: str) -> _ParsedSpeech:
     content = soup.find("div", id="content")
     if content is None:
         raise ValueError(
-            f"No <div id='content'> in speech HTML for {speech_id}. "
-            "Page layout may have changed."
+            f"No <div id='content'> in speech HTML for {speech_id}. Page layout may have changed."
         )
 
     heading = content.find("h1")
     if heading is None:
         raise ValueError(
-            f"No <h1> title in speech HTML for {speech_id}. "
-            "Page layout may have changed."
+            f"No <h1> title in speech HTML for {speech_id}. Page layout may have changed."
         )
     h1_text = _normalise_whitespace(heading.get_text(" ", strip=True))
     speech_type, title = _classify_speech_type(h1_text)
@@ -885,8 +879,7 @@ def _report_parse_coverage(speeches: pd.DataFrame) -> None:
         misses = int(speeches[column].isna().sum())
         if misses:
             logger.warning(
-                "{}/{} speech row(s) have no parsed {} (best-effort field; "
-                "None retained).",
+                "{}/{} speech row(s) have no parsed {} (best-effort field; None retained).",
                 misses,
                 total,
                 column,

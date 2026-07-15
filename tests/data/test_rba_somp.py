@@ -277,10 +277,7 @@ def test_parse_raises_on_missing_title() -> None:
 
 
 def test_parse_raises_on_missing_dc_date() -> None:
-    html = (
-        b'<html><body><div id="content"><h1>SoMP</h1>'
-        b"<p>body</p></div></body></html>"
-    )
+    html = b'<html><body><div id="content"><h1>SoMP</h1><p>body</p></div></body></html>'
     with pytest.raises(ValueError, match="dc.date"):
         _parse(html, decision_date=pd.Timestamp("2024-05-07"))
 

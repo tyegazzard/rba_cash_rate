@@ -33,7 +33,9 @@ class DummyClassifier:
         self._names: list[str] = []
         self._classes: np.ndarray = np.array([0, 1])
 
-    def fit(self, X: pd.DataFrame, y: pd.Series, sample_weight: np.ndarray | None = None) -> "DummyClassifier":
+    def fit(
+        self, X: pd.DataFrame, y: pd.Series, sample_weight: np.ndarray | None = None
+    ) -> "DummyClassifier":
         self._names = list(X.columns)
         self._classes = np.unique(y)
         return self
@@ -56,7 +58,9 @@ class DummyRegressor:
     def __init__(self) -> None:
         self._names: list[str] = []
 
-    def fit(self, X: pd.DataFrame, y: pd.Series, sample_weight: np.ndarray | None = None) -> "DummyRegressor":
+    def fit(
+        self, X: pd.DataFrame, y: pd.Series, sample_weight: np.ndarray | None = None
+    ) -> "DummyRegressor":
         self._names = list(X.columns)
         return self
 
@@ -98,7 +102,9 @@ class BaseRegressor(BaseModel):
 class MissingPredictProba:
     """Conforms except it lacks ``predict_proba`` — not a structural ``Model``."""
 
-    def fit(self, X: pd.DataFrame, y: pd.Series, sample_weight: np.ndarray | None = None) -> "MissingPredictProba":
+    def fit(
+        self, X: pd.DataFrame, y: pd.Series, sample_weight: np.ndarray | None = None
+    ) -> "MissingPredictProba":
         return self
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:

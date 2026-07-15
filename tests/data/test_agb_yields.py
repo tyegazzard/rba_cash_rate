@@ -62,7 +62,9 @@ _FIXTURE_CSV = (
 
 
 def test_parse_extracts_10y() -> None:
-    spec = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     df = _parse(_FIXTURE_CSV, spec=spec)
     assert list(df.columns) == ["observation_date", "series_id", "value"]
     assert df["observation_date"].dtype == "datetime64[ns]"
@@ -101,7 +103,9 @@ def test_parse_drops_trailing_empty_row() -> None:
 def test_parse_decodes_cp1252_title() -> None:
     """The table-title row contains an en-dash (cp1252 byte 0x96); parsing
     must not raise a UnicodeDecodeError."""
-    spec = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     # Should not raise.
     df = _parse(_FIXTURE_CSV, spec=spec)
     assert not df.empty
@@ -142,7 +146,9 @@ def test_parse_raises_when_series_id_row_missing() -> None:
 
 
 def test_parse_correct_values_for_anchors() -> None:
-    spec_10y = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec_10y = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     df = _parse(_FIXTURE_CSV, spec=spec_10y)
     by_date = dict(zip(df["observation_date"], df["value"]))
     assert by_date[pd.Timestamp("2013-05-20")] == pytest.approx(3.229)
@@ -157,7 +163,9 @@ def test_parse_correct_values_for_anchors() -> None:
 
 def test_attach_publication_dates_uses_next_bday() -> None:
     """20-May-2026 (Wed) → 21-May-2026 (Thu)."""
-    spec = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     parsed = _parse(_FIXTURE_CSV, spec=spec)
     out = _attach_publication_dates(parsed)
     row = out.loc[out["observation_date"] == pd.Timestamp("2026-05-20")].iloc[0]
@@ -167,7 +175,9 @@ def test_attach_publication_dates_uses_next_bday() -> None:
 def test_attach_publication_dates_handles_holiday_skip() -> None:
     """02-Apr-2026 (Thu, day before Good Fri Apr 3) → 07-Apr-2026 (Tue)
     skipping Good Fri, Sat/Sun, Easter Mon."""
-    spec = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     parsed = _parse(_FIXTURE_CSV, spec=spec)
     out = _attach_publication_dates(parsed)
     row = out.loc[out["observation_date"] == pd.Timestamp("2026-04-02")].iloc[0]
@@ -177,7 +187,9 @@ def test_attach_publication_dates_handles_holiday_skip() -> None:
 def test_attach_publication_dates_drops_stale_column() -> None:
     """If the input frame already carries a publication_date column, it
     must be dropped before merging — otherwise stale values would leak."""
-    spec = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     parsed = _parse(_FIXTURE_CSV, spec=spec).copy()
     parsed["publication_date"] = pd.Timestamp("2099-01-01")
     out = _attach_publication_dates(parsed)
@@ -185,7 +197,9 @@ def test_attach_publication_dates_drops_stale_column() -> None:
 
 
 def test_attach_publication_dates_output_columns() -> None:
-    spec = AgbYieldSeries(series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10)
+    spec = AgbYieldSeries(
+        series_id="agb_yield_10y", rba_series_id="FCMYGBAG10D", maturity_years=10
+    )
     parsed = _parse(_FIXTURE_CSV, spec=spec)
     out = _attach_publication_dates(parsed)
     assert list(out.columns) == [
@@ -235,9 +249,7 @@ def test_no_future_leakage_publication_strictly_after_observation() -> None:
         "Publication dates must be strictly after observation date; "
         f"observed minimum lag: {lag_days.min()} days"
     )
-    assert (lag_days <= 7).all(), (
-        f"Unexpectedly large pub-date lag: {lag_days.max()} days"
-    )
+    assert (lag_days <= 7).all(), f"Unexpectedly large pub-date lag: {lag_days.max()} days"
 
 
 # -----------------------------------------------------------------------------

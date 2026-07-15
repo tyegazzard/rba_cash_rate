@@ -82,8 +82,8 @@ def test_month_slugs_cover_all_months() -> None:
 @pytest.mark.parametrize(
     ("year", "month", "expected"),
     [
-        (2024, 2, date(2024, 2, 29)),   # leap Feb
-        (2025, 2, date(2025, 2, 28)),   # non-leap Feb
+        (2024, 2, date(2024, 2, 29)),  # leap Feb
+        (2025, 2, date(2025, 2, 28)),  # non-leap Feb
         (2026, 1, date(2026, 1, 31)),
         (2024, 4, date(2024, 4, 30)),
     ],
@@ -119,17 +119,15 @@ def test_build_ba_release_calendar_source_values_are_in_enum() -> None:
 @pytest.mark.parametrize(
     ("ref_me", "expected_pub"),
     [
-        (date(2026, 3, 31), date(2026, 5, 4)),    # Mon — Mar 2026 ref
-        (date(2026, 2, 28), date(2026, 4, 1)),    # Wed — Feb 2026 ref
-        (date(2025, 12, 31), date(2026, 2, 3)),   # Tue — Dec 2025 ref
-        (date(2024, 2, 29), date(2024, 4, 4)),    # Thu — Feb 2024 ref (Easter year)
-        (date(2023, 3, 31), date(2023, 5, 8)),    # Mon — 8th of M+2 (2nd Mon of May)
-        (date(2019, 12, 31), date(2020, 2, 3)),   # earliest scraped month
+        (date(2026, 3, 31), date(2026, 5, 4)),  # Mon — Mar 2026 ref
+        (date(2026, 2, 28), date(2026, 4, 1)),  # Wed — Feb 2026 ref
+        (date(2025, 12, 31), date(2026, 2, 3)),  # Tue — Dec 2025 ref
+        (date(2024, 2, 29), date(2024, 4, 4)),  # Thu — Feb 2024 ref (Easter year)
+        (date(2023, 3, 31), date(2023, 5, 8)),  # Mon — 8th of M+2 (2nd Mon of May)
+        (date(2019, 12, 31), date(2020, 2, 3)),  # earliest scraped month
     ],
 )
-def test_ba_publication_date_known_months(
-    ref_me: date, expected_pub: date
-) -> None:
+def test_ba_publication_date_known_months(ref_me: date, expected_pub: date) -> None:
     assert ba_publication_date(ref_me) == expected_pub
 
 

@@ -31,9 +31,7 @@ _KNOWN_RELEASE_DATES: list[tuple[date, date]] = [
 
 
 @pytest.mark.parametrize(("quarter_end", "expected"), _KNOWN_RELEASE_DATES)
-def test_cpi_publication_date_matches_known_release(
-    quarter_end: date, expected: date
-) -> None:
+def test_cpi_publication_date_matches_known_release(quarter_end: date, expected: date) -> None:
     actual = cpi_publication_date(quarter_end)
     assert actual == expected, (
         f"For quarter ending {quarter_end}: expected {expected}, "

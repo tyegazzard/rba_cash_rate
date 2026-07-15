@@ -105,8 +105,18 @@ _SCRAPE_FLOOR_MONTH = 12
 
 # Three-letter lower-case month slugs used by the ABS BA URL pattern.
 _MONTH_SLUGS: dict[int, str] = {
-    1: "jan", 2: "feb", 3: "mar", 4: "apr", 5: "may", 6: "jun",
-    7: "jul", 8: "aug", 9: "sep", 10: "oct", 11: "nov", 12: "dec",
+    1: "jan",
+    2: "feb",
+    3: "mar",
+    4: "apr",
+    5: "may",
+    6: "jun",
+    7: "jul",
+    8: "aug",
+    9: "sep",
+    10: "oct",
+    11: "nov",
+    12: "dec",
 }
 
 # Hand-verified overrides keyed by reference-month-end ``date``. Empty by
@@ -174,9 +184,7 @@ def scrape_release_date(year: int, month: int) -> date | None:
 
     match = _RELEASED_RE.search(body)
     if match is None:
-        logger.warning(
-            "ABS BA release page {} fetched OK but no Released field matched", url
-        )
+        logger.warning("ABS BA release page {} fetched OK but no Released field matched", url)
         return None
     day, month_str, year_str = match.group(1).split("/")
     return date(int(year_str), int(month_str), int(day))
@@ -332,6 +340,4 @@ if __name__ == "__main__":
     scraped = _scrape_all()
     _CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     scraped.to_csv(_CSV_PATH, index=False)
-    logger.info(
-        "Wrote ABS BA release calendar ({} rows) to {}", len(scraped), _CSV_PATH
-    )
+    logger.info("Wrote ABS BA release calendar ({} rows) to {}", len(scraped), _CSV_PATH)

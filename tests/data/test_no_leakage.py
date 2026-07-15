@@ -100,9 +100,7 @@ def test_injected_future_value_absent_from_master() -> None:
 def test_is_missing_flag_never_reveals_future_series() -> None:
     """A series whose only reading is in the future is all-missing — no leak."""
     meeting_frame = build_meeting_frame(_synthetic_f11())
-    future = _long(
-        [("2099-01-01", "2099-01-02", _FUTURE_SENTINEL)], series_id="future_only"
-    )
+    future = _long([("2099-01-01", "2099-01-02", _FUTURE_SENTINEL)], series_id="future_only")
     master = build_master(meeting_frame, {"macro": future})
 
     # No meeting can see the 2099 reading → level all NaN, indicator all 1.

@@ -80,9 +80,7 @@ def test_parse_maps_to_month_end() -> None:
 
 
 def test_parse_raises_on_missing_rba_series_id() -> None:
-    spec = RbaDSeries(
-        series_id="bogus", table="d_fixture", rba_series_id="DOES_NOT_EXIST"
-    )
+    spec = RbaDSeries(series_id="bogus", table="d_fixture", rba_series_id="DOES_NOT_EXIST")
     with pytest.raises(ValueError, match="not found among"):
         _parse(_FIXTURE_CSV, spec=spec)
 
@@ -111,11 +109,7 @@ def test_parse_raises_on_empty_series() -> None:
 
 def test_parse_raises_when_series_id_row_missing() -> None:
     # CSV without the "Series ID" metadata row.
-    csv = (
-        "TEST\n"
-        "Title,Series Q\n"
-        "31/01/2024,1.0\n"
-    ).encode("utf-8")
+    csv = ("TEST\nTitle,Series Q\n31/01/2024,1.0\n").encode("utf-8")
     spec = RbaDSeries(series_id="series_q", table="d_fixture", rba_series_id="FIXQ")
     with pytest.raises(ValueError, match="No 'Series ID' metadata row"):
         _parse(csv, spec=spec)

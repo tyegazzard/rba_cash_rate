@@ -166,9 +166,7 @@ def test_parse_modern_lowe_extracts_canonical_fields() -> None:
 
 def test_parse_modern_board_extracts_canonical_fields() -> None:
     parsed = _parse(_fixture_modern_board(), decision_date=pd.Timestamp("2024-02-06"))
-    assert parsed["title"] == (
-        "Statement by the Reserve Bank Board: Monetary Policy Decision"
-    )
+    assert parsed["title"] == ("Statement by the Reserve Bank Board: Monetary Policy Decision")
     assert parsed["publication_date"] == pd.Timestamp("2024-02-06")
     assert parsed["governor"] == "Reserve Bank Board"
     assert len(parsed["paragraphs"]) == 2
@@ -228,7 +226,7 @@ def test_parse_raises_on_unparseable_date() -> None:
         b'<span itemprop="headline">Statement by the Reserve Bank Board</span>'
         b'<span itemprop="datePublished">Feb 6, 2024</span>'  # wrong format
         b'<div class="rss-mr-content"><p>body</p></div>'
-        b'</div></body></html>'
+        b"</div></body></html>"
     )
     with pytest.raises(ValueError, match="Could not parse datePublished"):
         _parse(html, decision_date=pd.Timestamp("2024-02-06"))
@@ -240,7 +238,7 @@ def test_parse_raises_on_empty_body() -> None:
         b'<span itemprop="headline">Statement by the Reserve Bank Board</span>'
         b'<span itemprop="datePublished">6 February 2024</span>'
         b'<div class="rss-mr-content"></div>'  # no paragraphs
-        b'</div></body></html>'
+        b"</div></body></html>"
     )
     with pytest.raises(ValueError, match="zero body paragraphs"):
         _parse(html, decision_date=pd.Timestamp("2024-02-06"))

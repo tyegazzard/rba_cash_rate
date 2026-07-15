@@ -126,9 +126,7 @@ def quarter_end(year: int, quarter_month: int) -> date:
         return date(year, 9, 30)
     if quarter_month == 12:
         return date(year, 12, 31)
-    raise ValueError(
-        f"quarter_month must be one of 3, 6, 9, 12 (got {quarter_month})"
-    )
+    raise ValueError(f"quarter_month must be one of 3, 6, 9, 12 (got {quarter_month})")
 
 
 def _build_url(year: int, quarter_month: int) -> str:
@@ -159,9 +157,7 @@ def scrape_release_date(year: int, quarter_month: int) -> date | None:
 
     match = _RELEASED_RE.search(body)
     if match is None:
-        logger.warning(
-            "ABS TVD release page {} fetched OK but no Released field matched", url
-        )
+        logger.warning("ABS TVD release page {} fetched OK but no Released field matched", url)
         return None
     day, month_str, year_str = match.group(1).split("/")
     return date(int(year_str), int(month_str), int(day))
@@ -302,6 +298,4 @@ if __name__ == "__main__":
     scraped = _scrape_all()
     _CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     scraped.to_csv(_CSV_PATH, index=False)
-    logger.info(
-        "Wrote ABS TVD release calendar ({} rows) to {}", len(scraped), _CSV_PATH
-    )
+    logger.info("Wrote ABS TVD release calendar ({} rows) to {}", len(scraped), _CSV_PATH)

@@ -39,9 +39,7 @@ from rba.data.nab_release_calendar import (
         (2025, 12, 5, 30),
     ],
 )
-def test_nth_tuesday_of_month(
-    year: int, month: int, n: int, expected_day: int
-) -> None:
+def test_nth_tuesday_of_month(year: int, month: int, n: int, expected_day: int) -> None:
     assert nth_tuesday_of_month(year, month, n) == date(year, month, expected_day)
 
 

@@ -139,10 +139,7 @@ def test_attach_publication_dates_follows_month_end_for_in_window() -> None:
     parsed = _parse(_FIXTURE_CSV, spec=spec)
     out = _attach_publication_dates(parsed)
     in_window = out["observation_date"] >= _CALENDAR_VALIDATION_FLOOR
-    assert (
-        out.loc[in_window, "publication_date"]
-        > out.loc[in_window, "observation_date"]
-    ).all()
+    assert (out.loc[in_window, "publication_date"] > out.loc[in_window, "observation_date"]).all()
 
 
 def test_attach_publication_dates_drops_stale_column() -> None:

@@ -272,7 +272,11 @@ def test_to_wide_schema_includes_logical_series_present_in_fixture() -> None:
     assert wide.columns[1] == "reference_label"
     assert wide.columns[-1] == "release_date"
     # Every series we materialised must appear in the wide frame.
-    for sid in ["commodity_prices_all_aud", "commodity_prices_rural_aud", "commodity_prices_base_metals_aud"]:
+    for sid in [
+        "commodity_prices_all_aud",
+        "commodity_prices_rural_aud",
+        "commodity_prices_base_metals_aud",
+    ]:
         assert sid in wide.columns
 
 

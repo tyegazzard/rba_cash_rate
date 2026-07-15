@@ -170,9 +170,7 @@ def _parse(html: bytes) -> pd.DataFrame:
 
     tbody = table.find("tbody")
     if tbody is None:
-        raise ValueError(
-            f"No <tbody> in <table id={_TABLE_ID!r}>; page layout changed."
-        )
+        raise ValueError(f"No <tbody> in <table id={_TABLE_ID!r}>; page layout changed.")
 
     rows = []
     for tr in tbody.find_all("tr"):

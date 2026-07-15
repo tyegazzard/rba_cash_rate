@@ -317,9 +317,7 @@ def _select_targets(f11_meetings: pd.DataFrame) -> pd.DataFrame:
     df = df[has_url]
     df = df.assign(decision_date=pd.to_datetime(df["publication_date"]))
     return (
-        df[["decision_date", "statement_url"]]
-        .sort_values("decision_date")
-        .reset_index(drop=True)
+        df[["decision_date", "statement_url"]].sort_values("decision_date").reset_index(drop=True)
     )
 
 
@@ -539,9 +537,7 @@ def _validate_cross_check(media: pd.DataFrame, f11_meetings: pd.DataFrame) -> No
     """
     expected_targets = _select_targets(f11_meetings)
     expected = set(pd.to_datetime(expected_targets["decision_date"]))
-    actual = (
-        set(pd.to_datetime(media["decision_date"])) if not media.empty else set()
-    )
+    actual = set(pd.to_datetime(media["decision_date"])) if not media.empty else set()
 
     allow = {pd.Timestamp(d) for d in _KNOWN_MISSING_DECISIONS}
     missing = (expected - actual) - allow

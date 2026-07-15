@@ -181,11 +181,7 @@ def test_parse_h3_raises_on_missing_rba_series_id() -> None:
 
 
 def test_parse_h3_raises_when_series_id_row_missing() -> None:
-    csv = (
-        "TEST\n"
-        "Title,Series Q\n"
-        "31/01/2024,1.0\n"
-    ).encode("utf-8")
+    csv = ("TEST\nTitle,Series Q\n31/01/2024,1.0\n").encode("utf-8")
     spec = RbaH3Series(series_id="x", rba_series_id="GISPSDA")
     with pytest.raises(ValueError, match="No 'Series ID' metadata row"):
         _parse_h3(csv, spec=spec)
@@ -249,9 +245,7 @@ def test_attach_publication_dates_applies_flat_offset_pre_floor() -> None:
         }
     )
     out = _attach_publication_dates(obs)
-    assert out["publication_date"].iloc[0] == pd.Timestamp("1993-01-31") + pd.Timedelta(
-        days=40
-    )
+    assert out["publication_date"].iloc[0] == pd.Timestamp("1993-01-31") + pd.Timedelta(days=40)
 
 
 def test_attach_publication_dates_drops_stale_column() -> None:

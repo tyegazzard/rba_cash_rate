@@ -179,6 +179,4 @@ if __name__ == "__main__":
     dest = EXTERNAL_DATA_DIR / "rba_d_release_dates.csv"
     dest.parent.mkdir(parents=True, exist_ok=True)
     calendar_df.to_csv(dest, index=False)
-    logger.info(
-        "Wrote RBA D1/D2 release calendar ({} rows) to {}", len(calendar_df), dest
-    )
+    logger.info("Wrote RBA D1/D2 release calendar ({} rows) to {}", len(calendar_df), dest)

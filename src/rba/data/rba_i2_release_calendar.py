@@ -134,15 +134,15 @@ def _au_public_holidays(year: int) -> set[date]:
     good_friday = easter - timedelta(days=2)
     easter_monday = easter + timedelta(days=1)
     return {
-        _mondayise(date(year, 1, 1)),     # New Year's Day
-        _mondayise(date(year, 1, 26)),    # Australia Day
+        _mondayise(date(year, 1, 1)),  # New Year's Day
+        _mondayise(date(year, 1, 26)),  # Australia Day
         good_friday,
         easter_monday,
-        date(year, 4, 25),                # Anzac Day (national; some states Mondayise — superset OK)
-        _nth_weekday(year, 6, 0, 2),      # Queen's / Sovereign's Birthday — 2nd Mon June
-        _nth_weekday(year, 10, 0, 1),     # NSW Labour Day — 1st Mon Oct
-        _mondayise(date(year, 12, 25)),   # Christmas Day
-        _mondayise(date(year, 12, 26)),   # Boxing Day
+        date(year, 4, 25),  # Anzac Day (national; some states Mondayise — superset OK)
+        _nth_weekday(year, 6, 0, 2),  # Queen's / Sovereign's Birthday — 2nd Mon June
+        _nth_weekday(year, 10, 0, 1),  # NSW Labour Day — 1st Mon Oct
+        _mondayise(date(year, 12, 25)),  # Christmas Day
+        _mondayise(date(year, 12, 26)),  # Boxing Day
     }
 
 
@@ -258,6 +258,4 @@ if __name__ == "__main__":
     dest = EXTERNAL_DATA_DIR / "rba_i2_release_dates.csv"
     dest.parent.mkdir(parents=True, exist_ok=True)
     calendar_df.to_csv(dest, index=False)
-    logger.info(
-        "Wrote RBA I2 release calendar ({} rows) to {}", len(calendar_df), dest
-    )
+    logger.info("Wrote RBA I2 release calendar ({} rows) to {}", len(calendar_df), dest)

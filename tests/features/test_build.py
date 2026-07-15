@@ -93,7 +93,12 @@ def test_group_enabled_reads_flag_generically() -> None:
 def test_each_enabled_group_contributes_columns() -> None:
     config = _config(
         lags={"enabled": True, "horizons_meetings": [1, 2], "monthly_columns": ["cpi"]},
-        rolling={"enabled": True, "windows_meetings": [3], "stats": ["mean"], "monthly_columns": ["cpi"]},
+        rolling={
+            "enabled": True,
+            "windows_meetings": [3],
+            "stats": ["mean"],
+            "monthly_columns": ["cpi"],
+        },
         changes={
             "enabled": True,
             "horizons_meetings": [1],
@@ -173,7 +178,9 @@ def test_column_collision_raises() -> None:
 # -----------------------------------------------------------------------------
 def test_absent_configured_column_warn_skips(loguru_messages: list) -> None:
     """A lag column not in the frame is warn-skipped by the builder — no crash."""
-    config = _config(lags={"enabled": True, "horizons_meetings": [1], "monthly_columns": ["not_a_column"]})
+    config = _config(
+        lags={"enabled": True, "horizons_meetings": [1], "monthly_columns": ["not_a_column"]}
+    )
     out = build_features(_master(), config=config)
     assert list(out.columns) == list(_master().columns)  # nothing added
     assert any("not_a_column" in m and "absent" in m for m in loguru_messages)
@@ -184,13 +191,15 @@ def test_absent_configured_column_warn_skips(loguru_messages: list) -> None:
 # -----------------------------------------------------------------------------
 def test_config_injection_selects_groups() -> None:
     """Only the injected-enabled group contributes (disk config not consulted)."""
-    config = _config(changes={
-        "enabled": True,
-        "horizons_meetings": [1],
-        "abs_diff": {"columns": ["cpi"]},
-        "pct_change": {"columns": []},
-        "yoy": {"columns": []},
-    })
+    config = _config(
+        changes={
+            "enabled": True,
+            "horizons_meetings": [1],
+            "abs_diff": {"columns": ["cpi"]},
+            "pct_change": {"columns": []},
+            "yoy": {"columns": []},
+        }
+    )
     out = build_features(_master(), config=config)
     assert "cpi_diff_1" in out.columns
     assert not any(c.endswith("_lag_1") for c in out.columns)  # lags stayed off

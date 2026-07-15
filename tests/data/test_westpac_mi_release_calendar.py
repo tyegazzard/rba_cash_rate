@@ -39,9 +39,7 @@ from rba.data.westpac_mi_release_calendar import (
         (2010, 1, 2, 13),
     ],
 )
-def test_nth_wednesday_of_month(
-    year: int, month: int, n: int, expected_day: int
-) -> None:
+def test_nth_wednesday_of_month(year: int, month: int, n: int, expected_day: int) -> None:
     assert nth_wednesday_of_month(year, month, n) == date(year, month, expected_day)
 
 

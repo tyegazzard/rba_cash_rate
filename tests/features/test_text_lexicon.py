@@ -125,9 +125,7 @@ def test_multi_category_word_counts_each_category() -> None:
 # -----------------------------------------------------------------------------
 def test_aggregation_math_count_ratio_normalized(lexicon: dict[str, frozenset[str]]) -> None:
     text = "The outlook is weak and may decline but growth could improve"  # 11 tokens
-    scores = score_text(
-        text, lexicon, aggregations=("count", "ratio", "normalized_count")
-    )
+    scores = score_text(text, lexicon, aggregations=("count", "ratio", "normalized_count"))
     assert scores["lm_negative_count"] == 2.0
     assert scores["lm_total_words"] == 11.0
     assert scores["lm_negative_ratio"] == pytest.approx(2 / 11)
@@ -336,13 +334,9 @@ def test_compact_from_master_csv_keeps_only_category_words() -> None:
 # -----------------------------------------------------------------------------
 # Orchestration: document loading + graceful dictionary-absent path.
 # -----------------------------------------------------------------------------
-def test_load_document_frames_warn_skips_absent(
-    tmp_path: Path, loguru_messages: list
-) -> None:
+def test_load_document_frames_warn_skips_absent(tmp_path: Path, loguru_messages: list) -> None:
     _doc_frame(["weak"]).to_parquet(tmp_path / "rba_minutes.parquet", index=False)
-    frames = load_document_frames(
-        documents=["rba_minutes", "rba_speeches"], external_dir=tmp_path
-    )
+    frames = load_document_frames(documents=["rba_minutes", "rba_speeches"], external_dir=tmp_path)
     assert set(frames) == {"rba_minutes"}  # rba_speeches Parquet absent
     assert any("rba_speeches" in m and "absent" in m for m in loguru_messages)
 

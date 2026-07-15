@@ -353,9 +353,7 @@ def _parse(csv_bytes: bytes, *, spec: RbaI2Series) -> pd.DataFrame:
             "in I2 CSV; series may have been renamed or removed."
         )
 
-    parsed_dates = pd.to_datetime(
-        raw_df["Title"], format="%d/%m/%Y", errors="coerce"
-    )
+    parsed_dates = pd.to_datetime(raw_df["Title"], format="%d/%m/%Y", errors="coerce")
     data_mask = parsed_dates.notna()
 
     df = pd.DataFrame(
@@ -432,6 +430,4 @@ if __name__ == "__main__":
     dest = EXTERNAL_DATA_DIR / "rba_i2_commodity_prices.csv"
     dest.parent.mkdir(parents=True, exist_ok=True)
     wide_df.to_csv(dest, index=False, date_format="%Y-%m-%d")
-    logger.info(
-        "Wrote RBA I2 commodity prices ({} months) to {}", len(wide_df), dest
-    )
+    logger.info("Wrote RBA I2 commodity prices ({} months) to {}", len(wide_df), dest)

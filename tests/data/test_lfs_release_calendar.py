@@ -101,9 +101,7 @@ def test_era_boundary_constant() -> None:
         (date(2023, 12, 31), date(2024, 1, 25)),
     ],
 )
-def test_december_uses_fourth_thursday_of_january(
-    dec_ref: date, expected: date
-) -> None:
+def test_december_uses_fourth_thursday_of_january(dec_ref: date, expected: date) -> None:
     assert lfs_publication_date(dec_ref) == expected
 
 

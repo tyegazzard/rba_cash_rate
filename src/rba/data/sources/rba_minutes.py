@@ -306,11 +306,7 @@ def _select_targets(f11_meetings: pd.DataFrame) -> pd.DataFrame:
     has_url = df["minutes_url"].notna() & (df["minutes_url"].astype(str).str.len() > 0)
     df = df[has_url]
     df = df.assign(decision_date=pd.to_datetime(df["publication_date"]))
-    return (
-        df[["decision_date", "minutes_url"]]
-        .sort_values("decision_date")
-        .reset_index(drop=True)
-    )
+    return df[["decision_date", "minutes_url"]].sort_values("decision_date").reset_index(drop=True)
 
 
 def _resolve_snapshot(
@@ -588,9 +584,7 @@ def _validate_cross_check(minutes: pd.DataFrame, f11_meetings: pd.DataFrame) -> 
     """
     expected_targets = _select_targets(f11_meetings)
     expected = set(pd.to_datetime(expected_targets["decision_date"]))
-    actual = (
-        set(pd.to_datetime(minutes["decision_date"])) if not minutes.empty else set()
-    )
+    actual = set(pd.to_datetime(minutes["decision_date"])) if not minutes.empty else set()
 
     allow = {pd.Timestamp(d) for d in _KNOWN_MISSING_DECISIONS}
     missing = (expected - actual) - allow

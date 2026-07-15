@@ -269,9 +269,7 @@ def test_defaults_from_features_yaml() -> None:
 
     master = _master([float(i) for i in range(15)], name="headline_cpi_index")
     out = build_rolling(master)
-    expected = [
-        f"headline_cpi_index_roll_{w}_{s}" for w in windows for s in stats
-    ]
+    expected = [f"headline_cpi_index_roll_{w}_{s}" for w in windows for s in stats]
     assert [c for c in out.columns if c != "meeting_date"] == expected
 
 

@@ -455,7 +455,11 @@ def build_lm_scores_from_cache(
 
     lexicon_names = config_lexicon_names(config)
     if _LM_LEXICON_NAME not in lexicon_names:
-        logger.warning("LM: {!r} not in configured lexicons {}; nothing to do.", _LM_LEXICON_NAME, lexicon_names)
+        logger.warning(
+            "LM: {!r} not in configured lexicons {}; nothing to do.",
+            _LM_LEXICON_NAME,
+            lexicon_names,
+        )
 
     if not lexicon_data.lm_dictionary_available(lexicon_path):
         logger.warning(
@@ -466,7 +470,9 @@ def build_lm_scores_from_cache(
         return pd.DataFrame(
             columns=[
                 *_ID_COLUMNS,
-                *_feature_names(LM_CATEGORIES, config_aggregations(config), config_emit_tone(config)),
+                *_feature_names(
+                    LM_CATEGORIES, config_aggregations(config), config_emit_tone(config)
+                ),
             ]
         )
 

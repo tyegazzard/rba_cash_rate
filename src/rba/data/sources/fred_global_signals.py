@@ -418,7 +418,9 @@ def _parse_csv(csv_bytes: bytes, *, spec: FredSeries) -> pd.DataFrame:
 
 
 _DAILY_SERIES_IDS: tuple[str, ...] = tuple(s.series_id for s in SERIES if s.frequency == "daily")
-_MONTHLY_SERIES_IDS: tuple[str, ...] = tuple(s.series_id for s in SERIES if s.frequency == "monthly")
+_MONTHLY_SERIES_IDS: tuple[str, ...] = tuple(
+    s.series_id for s in SERIES if s.frequency == "monthly"
+)
 
 
 def _to_wide_daily(long_df: pd.DataFrame) -> pd.DataFrame:
@@ -469,9 +471,7 @@ def _to_wide_monthly(long_df: pd.DataFrame) -> pd.DataFrame:
     Returns: (n_reference_months, 2 + n_monthly_series).
     """
     monthly = long_df[long_df["series_id"].isin(_MONTHLY_SERIES_IDS)]
-    return _pivot_wide(
-        monthly, column_order=_MONTHLY_SERIES_IDS, date_label="reference_month_end"
-    )
+    return _pivot_wide(monthly, column_order=_MONTHLY_SERIES_IDS, date_label="reference_month_end")
 
 
 def _pivot_wide(
@@ -507,9 +507,7 @@ def _pivot_wide(
         }
     )
 
-    final_cols = (
-        [date_label] + [c for c in column_order if c in wide.columns] + ["release_date"]
-    )
+    final_cols = [date_label] + [c for c in column_order if c in wide.columns] + ["release_date"]
     return wide[final_cols].sort_values(date_label).reset_index(drop=True)
 
 

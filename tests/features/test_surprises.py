@@ -35,9 +35,7 @@ def loguru_messages():
 
 
 def _master(columns: dict[str, list[float]], n: int = 4) -> pd.DataFrame:
-    frame = pd.DataFrame(
-        {"meeting_date": pd.date_range("2020-01-01", periods=n, freq="MS")}
-    )
+    frame = pd.DataFrame({"meeting_date": pd.date_range("2020-01-01", periods=n, freq="MS")})
     for name, values in columns.items():
         frame[name] = values
     return frame
@@ -100,9 +98,7 @@ def test_consensus_absent_is_skipped_not_crashed(loguru_messages: list) -> None:
     master = _master({"cpi": [3.0, 3.5, 4.0, 4.2]})  # no consensus column
     out = build_surprises(master, pairs={"cpi": "cpi_consensus"})
     assert list(out.columns) == ["meeting_date"]  # inert, no crash
-    assert any(
-        "cpi_consensus" in m and "not sourced yet" in m for m in loguru_messages
-    )
+    assert any("cpi_consensus" in m and "not sourced yet" in m for m in loguru_messages)
 
 
 def test_realised_absent_is_warn_skipped(loguru_messages: list) -> None:

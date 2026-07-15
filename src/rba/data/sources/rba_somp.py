@@ -291,9 +291,7 @@ def fetch(
     df = pd.DataFrame(rows)
     if not df.empty:
         df["decision_date"] = pd.to_datetime(df["decision_date"]).astype("datetime64[ns]")
-        df["publication_date"] = pd.to_datetime(df["publication_date"]).astype(
-            "datetime64[ns]"
-        )
+        df["publication_date"] = pd.to_datetime(df["publication_date"]).astype("datetime64[ns]")
 
     _validate_cross_check(df, targets, f11_meetings)
 

@@ -34,27 +34,48 @@ def _synthetic_upstream() -> pd.DataFrame:
         {
             "date": [
                 # 2022-04-21 trade — 3 contracts
-                "2022-05-01", "2022-06-01", "2022-07-01",
+                "2022-05-01",
+                "2022-06-01",
+                "2022-07-01",
                 # 2024-02-05 trade (day before a notional 2024-02-06 meeting) — 4 contracts
-                "2024-02-01", "2024-03-01", "2024-04-01", "2024-05-01",
+                "2024-02-01",
+                "2024-03-01",
+                "2024-04-01",
+                "2024-05-01",
                 # 2025-12-08 trade — 3 contracts
-                "2025-12-01", "2026-01-01", "2026-02-01",
+                "2025-12-01",
+                "2026-01-01",
+                "2026-02-01",
                 # A row with a NaN value to exercise drop-null
                 "2026-03-01",
                 # A row with a NaN trade date to exercise drop-null
                 "2026-04-01",
             ],
             "cash_rate": [
-                0.10, 0.25, 0.50,                  # 2022-04-21
-                4.35, 4.30, 4.10, 3.95,            # 2024-02-05
-                3.60, 3.55, 3.50,                  # 2025-12-08
-                float("nan"),                      # null value
-                3.45,                              # null trade date
+                0.10,
+                0.25,
+                0.50,  # 2022-04-21
+                4.35,
+                4.30,
+                4.10,
+                3.95,  # 2024-02-05
+                3.60,
+                3.55,
+                3.50,  # 2025-12-08
+                float("nan"),  # null value
+                3.45,  # null trade date
             ],
             "scrape_date": [
-                "2022-04-21", "2022-04-21", "2022-04-21",
-                "2024-02-05", "2024-02-05", "2024-02-05", "2024-02-05",
-                "2025-12-08", "2025-12-08", "2025-12-08",
+                "2022-04-21",
+                "2022-04-21",
+                "2022-04-21",
+                "2024-02-05",
+                "2024-02-05",
+                "2024-02-05",
+                "2024-02-05",
+                "2025-12-08",
+                "2025-12-08",
+                "2025-12-08",
                 "2026-04-01",
                 None,
             ],
@@ -85,8 +106,7 @@ def test_parse_converts_cash_rate_to_settlement_price() -> None:
     """value column must be 100 - cash_rate (settlement-price convention)."""
     df = _parse_upstream_dataframe(_synthetic_upstream())
     row = df[
-        (df["observation_date"] == pd.Timestamp("2024-02-05"))
-        & (df["series_id"] == "ib_2024_02")
+        (df["observation_date"] == pd.Timestamp("2024-02-05")) & (df["series_id"] == "ib_2024_02")
     ].iloc[0]
     # cash_rate was 4.35 → settlement = 100 - 4.35 = 95.65
     assert row["value"] == pytest.approx(95.65)
@@ -280,9 +300,7 @@ def test_derive_meeting_implied_multiple_meetings() -> None:
         ],
         ignore_index=True,
     )
-    meetings = pd.DataFrame(
-        {"observation_date": pd.to_datetime(["2024-02-06", "2024-03-05"])}
-    )
+    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06", "2024-03-05"])})
     out = derive_meeting_implied(curve, meetings)
     assert len(out) == 2
     assert out.iloc[0]["implied_cash_rate"] == pytest.approx(4.35)  # 100 - 95.65

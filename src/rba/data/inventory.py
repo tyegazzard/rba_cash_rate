@@ -522,7 +522,9 @@ def read_metadata(raw_root: Path, source_name: str) -> list[dict[str, Any]]:
     return list(payload)
 
 
-def _read_snapshot(raw_root: Path, source_name: str, entry: dict[str, Any], cache: dict[Path, bytes]) -> bytes | None:
+def _read_snapshot(
+    raw_root: Path, source_name: str, entry: dict[str, Any], cache: dict[Path, bytes]
+) -> bytes | None:
     """Read a cached raw snapshot's bytes, memoised per path within a run."""
     filename = entry.get("snapshot_filename")
     if not filename:

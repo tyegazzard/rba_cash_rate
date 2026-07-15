@@ -183,8 +183,7 @@ def _validate_stats(stats: Sequence[str]) -> list[str]:
     unknown = [s for s in stats if s not in _STAT_BUILDERS]
     if unknown:
         raise ValueError(
-            f"Unknown rolling statistic(s): {unknown}. "
-            f"Valid stats: {sorted(_STAT_BUILDERS)}."
+            f"Unknown rolling statistic(s): {unknown}. Valid stats: {sorted(_STAT_BUILDERS)}."
         )
     return list(stats)
 

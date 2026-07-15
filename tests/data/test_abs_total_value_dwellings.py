@@ -163,15 +163,27 @@ def test_series_registry_includes_all_8_capitals() -> None:
         if s.dataflow != "RES_DWELL":
             continue
         for suffix in (
-            "sydney", "melbourne", "brisbane", "adelaide",
-            "perth", "hobart", "darwin", "canberra",
+            "sydney",
+            "melbourne",
+            "brisbane",
+            "adelaide",
+            "perth",
+            "hobart",
+            "darwin",
+            "canberra",
         ):
             if suffix in s.series_id:
                 suffixes_present.add(suffix)
                 break
     assert suffixes_present == {
-        "sydney", "melbourne", "brisbane", "adelaide",
-        "perth", "hobart", "darwin", "canberra",
+        "sydney",
+        "melbourne",
+        "brisbane",
+        "adelaide",
+        "perth",
+        "hobart",
+        "darwin",
+        "canberra",
     }
 
 
@@ -238,13 +250,9 @@ def test_build_spliced_extrapolates_post_boundary_from_tvd_growth() -> None:
     )
     spliced = _build_spliced_index(df).set_index("observation_date")
     # 2022-Q1 = 183.9 * 935 / 920
-    assert spliced.loc[pd.Timestamp("2022-03-31"), "value"] == pytest.approx(
-        183.9 * 935.0 / 920.0
-    )
+    assert spliced.loc[pd.Timestamp("2022-03-31"), "value"] == pytest.approx(183.9 * 935.0 / 920.0)
     # 2022-Q2 = 183.9 * 950 / 920
-    assert spliced.loc[pd.Timestamp("2022-06-30"), "value"] == pytest.approx(
-        183.9 * 950.0 / 920.0
-    )
+    assert spliced.loc[pd.Timestamp("2022-06-30"), "value"] == pytest.approx(183.9 * 950.0 / 920.0)
 
 
 def test_build_spliced_stamps_correct_series_id() -> None:
@@ -319,9 +327,7 @@ def test_attach_publication_dates_applies_flat_offset_for_rppi_era() -> None:
         }
     )
     out = _attach_publication_dates(obs)
-    assert out["publication_date"].iloc[0] == pd.Timestamp("2021-12-31") + pd.Timedelta(
-        days=76
-    )
+    assert out["publication_date"].iloc[0] == pd.Timestamp("2021-12-31") + pd.Timedelta(days=76)
 
 
 def test_attach_publication_dates_drops_stale_column() -> None:

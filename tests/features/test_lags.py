@@ -42,9 +42,7 @@ def loguru_messages():
 
 def _master(n: int = 6, columns: dict[str, list[float]] | None = None) -> pd.DataFrame:
     """A tiny meeting-indexed master-like frame with ``n`` monthly meetings."""
-    frame = pd.DataFrame(
-        {"meeting_date": pd.date_range("2020-01-01", periods=n, freq="MS")}
-    )
+    frame = pd.DataFrame({"meeting_date": pd.date_range("2020-01-01", periods=n, freq="MS")})
     if columns:
         for name, values in columns.items():
             frame[name] = values

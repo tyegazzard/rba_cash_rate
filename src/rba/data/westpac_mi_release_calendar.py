@@ -88,9 +88,7 @@ def westpac_mi_publication_date(reference_month_end: date) -> date:
     """
     if reference_month_end in _OVERRIDES:
         return _OVERRIDES[reference_month_end]
-    return nth_wednesday_of_month(
-        reference_month_end.year, reference_month_end.month, 2
-    )
+    return nth_wednesday_of_month(reference_month_end.year, reference_month_end.month, 2)
 
 
 def build_westpac_mi_release_calendar(

@@ -212,9 +212,7 @@ def test_attach_publication_dates_never_returns_nat() -> None:
 
 
 def test_attach_publication_dates_drops_stale_column() -> None:
-    parsed = _parse(
-        _FIXTURE_JSON, series_id="wpi_total_hourly_excl_bonuses_all_sectors_sa"
-    ).copy()
+    parsed = _parse(_FIXTURE_JSON, series_id="wpi_total_hourly_excl_bonuses_all_sectors_sa").copy()
     parsed["publication_date"] = pd.Timestamp("2099-01-01")
     out = _attach_publication_dates(parsed)
     # The stale 2099 value must not survive — calendar replaces it for matched
@@ -264,10 +262,6 @@ def test_series_registry_datakey_positions() -> None:
         "1.THRPEB.7.TOT.20.AUS.Q"
     )
     # Private -> SECTOR=1
-    assert by_id["wpi_total_hourly_excl_bonuses_private_sa"].datakey == (
-        "1.THRPEB.1.TOT.20.AUS.Q"
-    )
+    assert by_id["wpi_total_hourly_excl_bonuses_private_sa"].datakey == ("1.THRPEB.1.TOT.20.AUS.Q")
     # Public  -> SECTOR=2
-    assert by_id["wpi_total_hourly_excl_bonuses_public_sa"].datakey == (
-        "1.THRPEB.2.TOT.20.AUS.Q"
-    )
+    assert by_id["wpi_total_hourly_excl_bonuses_public_sa"].datakey == ("1.THRPEB.2.TOT.20.AUS.Q")

@@ -324,9 +324,7 @@ def _resolve_snapshot(
     return _download(dest_dir, spec=spec)
 
 
-def _download(
-    dest_dir: Path, *, spec: AsxIndexSeries
-) -> tuple[Path, dict[str, object], bytes]:
+def _download(dest_dir: Path, *, spec: AsxIndexSeries) -> tuple[Path, dict[str, object], bytes]:
     """Download one ticker's chart JSON, save dated snapshot, return entry."""
     today = datetime.now(timezone.utc).date().isoformat()
     snapshot_path = dest_dir / f"{today}__{spec.series_id}.json"
@@ -354,10 +352,7 @@ def _download(
 def _build_url(yahoo_ticker: str) -> str:
     """Build the Yahoo v8 chart URL for one ticker (full daily history)."""
     encoded = urllib.parse.quote(yahoo_ticker, safe="")
-    return (
-        f"{YAHOO_BASE_URL}{encoded}"
-        "?period1=0&period2=9999999999&interval=1d"
-    )
+    return f"{YAHOO_BASE_URL}{encoded}?period1=0&period2=9999999999&interval=1d"
 
 
 def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
@@ -399,9 +394,7 @@ def _parse_chart_json(
     chart = payload.get("chart", {})
     err = chart.get("error")
     if err is not None:
-        raise ValueError(
-            f"Yahoo chart endpoint returned error for {spec.yahoo_ticker!r}: {err}"
-        )
+        raise ValueError(f"Yahoo chart endpoint returned error for {spec.yahoo_ticker!r}: {err}")
     results = chart.get("result")
     if not results:
         raise ValueError(
@@ -489,9 +482,7 @@ def _to_wide(long_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     column_order = (
-        ["trade_date"]
-        + [c for c in _WIDE_COLUMN_ORDER if c in wide.columns]
-        + ["release_date"]
+        ["trade_date"] + [c for c in _WIDE_COLUMN_ORDER if c in wide.columns] + ["release_date"]
     )
     return wide[column_order].sort_values("trade_date").reset_index(drop=True)
 

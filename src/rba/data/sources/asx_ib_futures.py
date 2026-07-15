@@ -135,9 +135,7 @@ import pyreadr
 from rba.config import EXTERNAL_DATA_DIR, RAW_DATA_DIR
 
 SOURCE_NAME = "asx_ib_futures"
-SOURCE_URL = (
-    "https://github.com/MattCowgill/cash-rate-scraper/raw/main/combined_data/all_data.Rds"
-)
+SOURCE_URL = "https://github.com/MattCowgill/cash-rate-scraper/raw/main/combined_data/all_data.Rds"
 
 # All ingested observations are post-1993 (upstream coverage begins
 # 2022-04-21). The floor exists for symmetry with other source modules;
@@ -347,8 +345,7 @@ def _load_rds(raw_bytes: bytes, snapshot_path: Path) -> pd.DataFrame:
     result = pyreadr.read_r(str(snapshot_path))
     if not result:
         raise ValueError(
-            f"pyreadr returned no R objects from {snapshot_path}; "
-            "Rds file is empty or corrupt."
+            f"pyreadr returned no R objects from {snapshot_path}; Rds file is empty or corrupt."
         )
     df = next(iter(result.values()))
     if not isinstance(df, pd.DataFrame):
@@ -552,9 +549,11 @@ def _to_wide(long_df: pd.DataFrame) -> pd.DataFrame:
     contract_cols = sorted(c for c in wide.columns if c.startswith("ib_"))
     wide["n_contracts"] = wide[contract_cols].notna().sum(axis=1).astype("int64")
 
-    return wide[["trade_date", *contract_cols, "n_contracts"]].sort_values(
-        "trade_date"
-    ).reset_index(drop=True)
+    return (
+        wide[["trade_date", *contract_cols, "n_contracts"]]
+        .sort_values("trade_date")
+        .reset_index(drop=True)
+    )
 
 
 if __name__ == "__main__":

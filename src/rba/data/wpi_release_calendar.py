@@ -112,9 +112,7 @@ def quarter_end(year: int, quarter_month: int) -> date:
         return date(year, 9, 30)
     if quarter_month == 12:
         return date(year, 12, 31)
-    raise ValueError(
-        f"quarter_month must be one of 3, 6, 9, 12 (got {quarter_month})"
-    )
+    raise ValueError(f"quarter_month must be one of 3, 6, 9, 12 (got {quarter_month})")
 
 
 def _build_url(year: int, quarter_month: int) -> str:

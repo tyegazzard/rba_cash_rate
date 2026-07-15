@@ -131,8 +131,13 @@ def test_output_isolation_no_source_or_companion_echoed(
     echoed = (set(out.columns) - {"meeting_date"}) & set(master.columns)
     assert echoed == set(), f"{name} echoed input columns: {sorted(echoed)}"
     # And no transform ever targeted a non-level column.
-    for banned in ("cpi_age_days", "cpi_is_missing", "regime_covid",
-                   "rate_change_bps", "gap_days_since_last_meeting"):
+    for banned in (
+        "cpi_age_days",
+        "cpi_is_missing",
+        "regime_covid",
+        "rate_change_bps",
+        "gap_days_since_last_meeting",
+    ):
         assert not any(c.startswith(f"{banned}_") or c == banned for c in out.columns), (
             f"{name} transformed non-level column {banned}"
         )

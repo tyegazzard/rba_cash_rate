@@ -144,9 +144,7 @@ def test_build_wpi_release_calendar_shape_and_dtypes() -> None:
         (date(2019, 9, 30), date(2019, 11, 13)),
     ],
 )
-def test_wpi_publication_date_known_quarters(
-    ref_qe: date, expected_pub: date
-) -> None:
+def test_wpi_publication_date_known_quarters(ref_qe: date, expected_pub: date) -> None:
     assert wpi_publication_date(ref_qe) == expected_pub
 
 

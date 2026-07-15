@@ -35,9 +35,7 @@ def _meeting_frame(dates: list[str]) -> pd.DataFrame:
 # -----------------------------------------------------------------------------
 def test_governor_eras_partition_every_meeting() -> None:
     """Exactly one Governor dummy is set per meeting across the full history."""
-    frame = _meeting_frame(
-        ["1994-06-07", "2000-05-02", "2010-11-02", "2020-06-02", "2025-02-18"]
-    )
+    frame = _meeting_frame(["1994-06-07", "2000-05-02", "2010-11-02", "2020-06-02", "2025-02-18"])
     out = add_regime_dummies(frame)
     gov_cols = [c for c in out.columns if c.startswith("regime_gov_")]
     assert (out[gov_cols].sum(axis=1) == 1).all()
@@ -171,10 +169,7 @@ def test_is_missing_matches_level_isna() -> None:
     """``<sid>_is_missing`` is exactly the level column's NaN mask, per meeting."""
     master = build_master(build_meeting_frame(_demo_f11()), {"src": _demo_long()})
     assert "demo_is_missing" in master.columns
-    assert (
-        master["demo_is_missing"].tolist()
-        == master["demo"].isna().astype(int).tolist()
-    )
+    assert master["demo_is_missing"].tolist() == master["demo"].isna().astype(int).tolist()
     # Concretely: the 2020-02 meeting predates the reading (missing), 2020-06 sees it.
     assert master.loc[0, "demo_is_missing"] == 1
     assert master.loc[1, "demo_is_missing"] == 0
@@ -184,9 +179,7 @@ def test_every_level_column_gets_an_indicator_meta_columns_do_not() -> None:
     """Every ``<sid>`` (identified by its ``_age_days`` companion) gets a flag."""
     meeting_frame = add_regime_dummies(build_meeting_frame(_demo_f11()))
     master = build_master(meeting_frame, {"src": _demo_long()})
-    level_ids = [
-        c[: -len("_age_days")] for c in master.columns if c.endswith("_age_days")
-    ]
+    level_ids = [c[: -len("_age_days")] for c in master.columns if c.endswith("_age_days")]
     assert level_ids == ["demo"]
     for sid in level_ids:
         assert f"{sid}_is_missing" in master.columns

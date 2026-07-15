@@ -154,9 +154,7 @@ def fetch(*, force_download: bool = True) -> pd.DataFrame:
     dest_dir = RAW_DATA_DIR / SOURCE_NAME
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    snapshot_path, entry, raw_bytes = _resolve_snapshot(
-        dest_dir, force_download=force_download
-    )
+    snapshot_path, entry, raw_bytes = _resolve_snapshot(dest_dir, force_download=force_download)
 
     frames: list[pd.DataFrame] = []
     obs_count = 0
@@ -188,9 +186,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
         # these rows are conservatively excluded from any point-in-time join —
         # no leakage). Build the column as an explicit datetime64 NaT Series so
         # the dtype matches the merge path below.
-        df = df.assign(
-            publication_date=pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
-        )
+        df = df.assign(publication_date=pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]"))
         return df[["observation_date", "publication_date", "series_id", "value"]]
 
     min_year = int(df.loc[in_window_obs, "observation_date"].dt.year.min())
@@ -313,18 +309,14 @@ def _parse(csv_bytes: bytes, *, spec: RbaH3Series) -> pd.DataFrame:
             "in H3 CSV; series may have been renamed or removed."
         )
 
-    parsed_dates = pd.to_datetime(
-        raw_df["Title"], format="%d/%m/%Y", errors="coerce"
-    )
+    parsed_dates = pd.to_datetime(raw_df["Title"], format="%d/%m/%Y", errors="coerce")
     data_mask = parsed_dates.notna()
 
     df = pd.DataFrame(
         {
             "observation_date": _to_month_end(parsed_dates[data_mask]),
             "series_id": spec.series_id,
-            "value": pd.to_numeric(
-                raw_df.loc[data_mask, target_col], errors="coerce"
-            ),
+            "value": pd.to_numeric(raw_df.loc[data_mask, target_col], errors="coerce"),
         }
     )
     df = df.dropna(subset=["value"]).reset_index(drop=True)
@@ -360,9 +352,7 @@ def _to_wide(long_df: pd.DataFrame) -> pd.DataFrame:
     ).reset_index()
     wide.columns.name = None
 
-    pub_dates = (
-        long_df.groupby("observation_date")["publication_date"].first().reset_index()
-    )
+    pub_dates = long_df.groupby("observation_date")["publication_date"].first().reset_index()
     wide = wide.merge(pub_dates, on="observation_date", how="left")
     wide = wide.rename(
         columns={
@@ -387,6 +377,4 @@ if __name__ == "__main__":
     dest = EXTERNAL_DATA_DIR / "nab_business_survey.csv"
     dest.parent.mkdir(parents=True, exist_ok=True)
     wide_df.to_csv(dest, index=False, date_format="%Y-%m-%d")
-    logger.info(
-        "Wrote NAB business survey ({} months) to {}", len(wide_df), dest
-    )
+    logger.info("Wrote NAB business survey ({} months) to {}", len(wide_df), dest)

@@ -78,9 +78,7 @@ def test_legacy_released_regex_matches_dc_date_issued() -> None:
 
 def test_legacy_released_regex_does_not_match_dc_date_modified() -> None:
     """The modified meta tag must not be mistaken for the issued date."""
-    only_modified = (
-        '<META NAME="DC.Date.modified" SCHEME="ISO8601" CONTENT="2019-02-01">'
-    )
+    only_modified = '<META NAME="DC.Date.modified" SCHEME="ISO8601" CONTENT="2019-02-01">'
     assert _LEGACY_RELEASED_RE.search(only_modified) is None
 
 
@@ -222,9 +220,7 @@ def test_build_gdp_release_calendar_covers_inflation_targeting_era() -> None:
         (date(2025, 12, 31), date(2026, 3, 4)),
     ],
 )
-def test_gdp_publication_date_known_quarters(
-    ref_qe: date, expected_pub: date
-) -> None:
+def test_gdp_publication_date_known_quarters(ref_qe: date, expected_pub: date) -> None:
     assert gdp_publication_date(ref_qe) == expected_pub
 
 

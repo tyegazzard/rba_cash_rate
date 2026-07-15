@@ -271,9 +271,7 @@ def fetch(*, force_download: bool = True) -> pd.DataFrame:
     _write_manifest(dest_dir, manifest)
 
     combined = pd.concat(parsed_frames, ignore_index=True)
-    combined = combined.drop_duplicates(
-        subset=["series_id", "observation_date"], keep="last"
-    )
+    combined = combined.drop_duplicates(subset=["series_id", "observation_date"], keep="last")
     combined = _attach_publication_dates(combined)
     return combined.sort_values(["series_id", "observation_date"]).reset_index(drop=True)
 
@@ -490,9 +488,7 @@ def _extract_series(
             "in F11.1 input; series may have been renamed or removed."
         )
 
-    parsed_dates = pd.to_datetime(
-        raw_df["Title"], format="%d-%b-%Y", errors="coerce"
-    )
+    parsed_dates = pd.to_datetime(raw_df["Title"], format="%d-%b-%Y", errors="coerce")
     if parsed_dates.notna().sum() == 0:
         parsed_dates = pd.to_datetime(raw_df["Title"], errors="coerce")
     data_mask = parsed_dates.notna()
@@ -555,9 +551,7 @@ def _to_wide(long_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     column_order = (
-        ["trade_date"]
-        + [c for c in _WIDE_COLUMN_ORDER if c in wide.columns]
-        + ["release_date"]
+        ["trade_date"] + [c for c in _WIDE_COLUMN_ORDER if c in wide.columns] + ["release_date"]
     )
     return wide[column_order].sort_values("trade_date").reset_index(drop=True)
 

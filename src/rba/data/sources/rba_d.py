@@ -328,9 +328,7 @@ def _resolve_snapshot(
     return _download(dest_dir, table=table, url=url)
 
 
-def _download(
-    dest_dir: Path, *, table: str, url: str
-) -> tuple[Path, dict[str, object], bytes]:
+def _download(dest_dir: Path, *, table: str, url: str) -> tuple[Path, dict[str, object], bytes]:
     """Download one table CSV, save dated snapshot, return path + manifest + bytes."""
     today = datetime.now(timezone.utc).date().isoformat()
     snapshot_path = dest_dir / f"{today}__{table}.csv"
@@ -385,9 +383,7 @@ def _parse(csv_bytes: bytes, *, spec: RbaDSeries) -> pd.DataFrame:
     # header=1 makes the "Title" row the header. The Series ID row then
     # sits in the body under df["Title"] == "Series ID" — that row maps
     # each column display name to its RBA series ID.
-    raw_df = pd.read_csv(
-        io.BytesIO(csv_bytes), header=1, low_memory=False, skipinitialspace=False
-    )
+    raw_df = pd.read_csv(io.BytesIO(csv_bytes), header=1, low_memory=False, skipinitialspace=False)
 
     sid_row = raw_df[raw_df["Title"] == "Series ID"]
     if sid_row.empty:
@@ -411,9 +407,7 @@ def _parse(csv_bytes: bytes, *, spec: RbaDSeries) -> pd.DataFrame:
             f"renamed or removed."
         )
 
-    parsed_dates = pd.to_datetime(
-        raw_df["Title"], format="%d/%m/%Y", errors="coerce"
-    )
+    parsed_dates = pd.to_datetime(raw_df["Title"], format="%d/%m/%Y", errors="coerce")
     data_mask = parsed_dates.notna()
 
     df = pd.DataFrame(

@@ -150,9 +150,7 @@ def quarter_end(year: int, quarter_month: int) -> date:
         return date(year, 9, 30)
     if quarter_month == 12:
         return date(year, 12, 31)
-    raise ValueError(
-        f"quarter_month must be one of 3, 6, 9, 12 (got {quarter_month})"
-    )
+    raise ValueError(f"quarter_month must be one of 3, 6, 9, 12 (got {quarter_month})")
 
 
 def _uses_modern_url(year: int, quarter_month: int) -> bool:
@@ -330,9 +328,7 @@ def _scrape_all(through_year: int | None = None) -> pd.DataFrame:
     for year, qm in _iter_scrape_targets(through_year=through_year):
         pub = scrape_release_date(year, qm)
         qe = quarter_end(year, qm)
-        slug = (
-            _MODERN_MONTH_SLUGS[qm] if _uses_modern_url(year, qm) else _LEGACY_MONTH_SLUGS[qm]
-        )
+        slug = _MODERN_MONTH_SLUGS[qm] if _uses_modern_url(year, qm) else _LEGACY_MONTH_SLUGS[qm]
         if pub is None:
             logger.info("GDP {}-{} -> no release date (skipping)", year, slug)
         else:

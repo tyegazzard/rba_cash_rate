@@ -303,9 +303,7 @@ def _parse(json_bytes: bytes, *, series_id: str) -> pd.DataFrame:
     structure = payload["data"]["structures"][0]
     obs_dims = structure["dimensions"]["observation"]
 
-    time_index = next(
-        i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD"
-    )
+    time_index = next(i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD")
     time_codes = [v["id"] for v in obs_dims[time_index]["values"]]
 
     observations = payload["data"]["dataSets"][0]["observations"]

@@ -373,13 +373,9 @@ def _build_spliced_index(df: pd.DataFrame) -> pd.DataFrame:
 
     prev_rppi_quarter = pd.Timestamp("2021-09-30")
     if prev_rppi_quarter not in rppi.index:
-        raise ValueError(
-            "Cannot validate splice: RPPI value for 2021-Q3 missing."
-        )
+        raise ValueError("Cannot validate splice: RPPI value for 2021-Q3 missing.")
     if _SPLICE_FIRST_TVD_QUARTER not in tvd_mean.index:
-        raise ValueError(
-            "Cannot validate splice: TVD mean value for 2022-Q1 missing."
-        )
+        raise ValueError("Cannot validate splice: TVD mean value for 2022-Q1 missing.")
 
     rppi_qoq = rppi[_SPLICE_BOUNDARY] / rppi[prev_rppi_quarter] - 1.0
     tvd_qoq = tvd_mean[_SPLICE_FIRST_TVD_QUARTER] / tvd_mean[_SPLICE_BOUNDARY] - 1.0
@@ -424,18 +420,14 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
     ``_CALENDAR_VALIDATION_FLOOR`` remains unmatched.
     """
     df = df.drop(columns=["publication_date"], errors="ignore")
-    calendar_df = build_tvd_release_calendar()[
-        ["reference_quarter_end", "publication_date"]
-    ]
+    calendar_df = build_tvd_release_calendar()[["reference_quarter_end", "publication_date"]]
     merged = df.merge(
         calendar_df.rename(columns={"reference_quarter_end": "observation_date"}),
         on="observation_date",
         how="left",
     )
 
-    pre_floor = merged["publication_date"].isna() & (
-        merged["observation_date"] < _SCRAPE_FLOOR
-    )
+    pre_floor = merged["publication_date"].isna() & (merged["observation_date"] < _SCRAPE_FLOOR)
     merged.loc[pre_floor, "publication_date"] = merged.loc[
         pre_floor, "observation_date"
     ] + pd.Timedelta(days=_FLAT_OFFSET_DAYS)
@@ -492,9 +484,7 @@ def _download(
     url = series.url(start_period=start_period)
     logger.info("Downloading {} -> {}", url, snapshot_path)
 
-    req = urllib.request.Request(
-        url, headers={"Accept": "application/vnd.sdmx.data+json"}
-    )
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.sdmx.data+json"})
     with urllib.request.urlopen(req, timeout=60) as response:  # noqa: S310 — public ABS URL
         raw_bytes = response.read()
     snapshot_path.write_bytes(raw_bytes)
@@ -536,9 +526,7 @@ def _parse(json_bytes: bytes, *, series_id: str) -> pd.DataFrame:
     structure = payload["data"]["structures"][0]
     obs_dims = structure["dimensions"]["observation"]
 
-    time_index = next(
-        i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD"
-    )
+    time_index = next(i for i, d in enumerate(obs_dims) if d["id"] == "TIME_PERIOD")
     time_codes = [v["id"] for v in obs_dims[time_index]["values"]]
 
     observations = payload["data"]["dataSets"][0]["observations"]
