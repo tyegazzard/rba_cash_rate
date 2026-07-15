@@ -96,7 +96,7 @@ def macro_f1(
     y_true: ArrayLike,
     y_pred: ArrayLike,
     *,
-    labels: Sequence[Any] | None = None,
+    labels: Sequence[Any] | np.ndarray | None = None,
 ) -> float:
     """Unweighted mean of per-class F1 — the cycle-turn signal metric.
 
@@ -120,7 +120,7 @@ def confusion_matrix(
     y_true: ArrayLike,
     y_pred: ArrayLike,
     *,
-    labels: Sequence[Any] | None = None,
+    labels: Sequence[Any] | np.ndarray | None = None,
 ) -> np.ndarray:
     """Rows are true classes, columns are predicted — same order as ``labels``.
 
@@ -140,7 +140,7 @@ def log_loss(
     y_true: ArrayLike,
     y_proba: ArrayLike,
     *,
-    labels: Sequence[Any],
+    labels: Sequence[Any] | np.ndarray,
 ) -> float:
     """Cross-entropy — ``mean_i(-log(P_ik*))`` where ``k*`` is the true class of row ``i``.
 
@@ -167,7 +167,7 @@ def brier_score(
     y_true: ArrayLike,
     y_proba: ArrayLike,
     *,
-    labels: Sequence[Any],
+    labels: Sequence[Any] | np.ndarray,
 ) -> float:
     """Multiclass Brier — ``mean_i(sum_k (P_ik − I[y_i = k])²)``.
 
@@ -206,7 +206,7 @@ def compute_classification_metrics(
     y_pred: ArrayLike,
     *,
     y_proba: ArrayLike | None = None,
-    labels: Sequence[Any] | None = None,
+    labels: Sequence[Any] | np.ndarray | None = None,
 ) -> dict[str, Any]:
     """Compute every §7 classification metric that ``(y_true, y_pred, y_proba)`` supports.
 

@@ -356,7 +356,9 @@ def test_hit_rate_vs_market_drops_rows_where_market_is_nan() -> None:
     """Pre-2022 meetings without market coverage drop from the paired comparison."""
     y_true = ["cut", "hold", "hike", "hold"]
     y_model = ["cut", "hold", "hike", "cut"]  # 3/4 right on all 4 rows
-    y_market = [np.nan, np.nan, "hike", "hold"]  # only last 2 rows covered
+    # dtype=object keeps the NaNs as floats (a plain list mixes float+str →
+    # list[object], which is not ArrayLike; an object array is and preserves NaN).
+    y_market = np.array([np.nan, np.nan, "hike", "hold"], dtype=object)  # only last 2 rows covered
     result = hit_rate_vs_market(y_true, y_model, y_market)
     # Only rows 2 & 3 survive. Model correct on row 2, wrong on row 3 → 1/2.
     # Market correct on row 2, correct on row 3 → 2/2.

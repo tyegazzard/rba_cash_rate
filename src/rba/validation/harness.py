@@ -46,7 +46,6 @@ No network anywhere in this module.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 import datetime as dt
 import json
@@ -404,12 +403,6 @@ def _score_all_folds(
     dict[str, float] | None,
 ]:
     """Compute overall + per-fold metrics, calibration data, and hit-rate."""
-    dispatcher: Callable[..., dict[str, Any]]
-    if task == "classification":
-        dispatcher = compute_classification_metrics
-    else:
-        dispatcher = compute_regression_metrics
-
     metrics_per_fold: list[dict[str, Any]] = []
     # Small test folds (default ``test_size=1``) trip sklearn UserWarnings that
     # are inherent to walk-forward CV rather than a bug: single-label folds,
@@ -424,14 +417,14 @@ def _score_all_folds(
         warnings.filterwarnings("ignore", message=r"R\^2 score is not well-defined")
         for rec in fold_records:
             if task == "classification":
-                entry = dispatcher(
+                entry = compute_classification_metrics(
                     rec.y_true,
                     rec.y_pred,
                     y_proba=rec.y_proba,
                     labels=rec.classes,
                 )
             else:
-                entry = dispatcher(rec.y_true, rec.y_pred)
+                entry = compute_regression_metrics(rec.y_true, rec.y_pred)
             metrics_per_fold.append({"fold_index": rec.fold_index, **entry})
 
     all_true = np.concatenate([rec.y_true for rec in fold_records])
@@ -445,14 +438,19 @@ def _score_all_folds(
         all_proba = None
         if all(rec.y_proba is not None for rec in fold_records):
             all_proba = np.concatenate([rec.y_proba for rec in fold_records])
-        metrics_overall = dispatcher(all_true, all_pred, y_proba=all_proba, labels=classes)
+        metrics_overall = compute_classification_metrics(
+            all_true, all_pred, y_proba=all_proba, labels=classes
+        )
+        # ``classes`` is set together with ``y_proba`` per fold (see
+        # ``_evaluate_fold``), so ``all_proba is not None`` implies
+        # ``classes is not None``; the explicit check narrows it for mypy.
         calibration_data = (
             _build_calibration_frame(all_true, all_proba, classes)
-            if all_proba is not None
+            if all_proba is not None and classes is not None
             else None
         )
     else:
-        metrics_overall = dispatcher(all_true, all_pred)
+        metrics_overall = compute_regression_metrics(all_true, all_pred)
         calibration_data = None
 
     hitrate: dict[str, float] | None = None

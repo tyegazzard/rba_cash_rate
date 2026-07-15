@@ -72,7 +72,7 @@ _STRATEGIES: tuple[str, ...] = ("uniform", "quantile")
 def reliability_diagram_data(
     y_true: ArrayLike,
     y_proba: ArrayLike,
-    labels: Sequence[Any],
+    labels: Sequence[Any] | np.ndarray,
     class_label: Any,
     *,
     n_bins: int = 10,
@@ -188,7 +188,7 @@ def reliability_diagram_data(
 def expected_calibration_error(
     y_true: ArrayLike,
     y_proba: ArrayLike,
-    labels: Sequence[Any],
+    labels: Sequence[Any] | np.ndarray,
     class_label: Any,
     *,
     n_bins: int = 10,
@@ -209,7 +209,7 @@ def expected_calibration_error(
 def maximum_calibration_error(
     y_true: ArrayLike,
     y_proba: ArrayLike,
-    labels: Sequence[Any],
+    labels: Sequence[Any] | np.ndarray,
     class_label: Any,
     *,
     n_bins: int = 10,

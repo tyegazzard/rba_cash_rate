@@ -180,6 +180,43 @@ def test_evaluate_taylor_rule_regression_runs_full_pipeline(
     assert result.hit_rate_vs_market_result is None
 
 
+def test_evaluate_regression_dispatch_uses_only_regression_metrics(
+    regression_frame: tuple[pd.DataFrame, pd.Series], tmp_path: Path
+) -> None:
+    """Regression scoring must route through ``compute_regression_metrics`` only.
+
+    Regression guard for the metrics dispatch in ``_score_all_folds``: a prior
+    version funnelled every fold through a single ``dispatcher`` variable, which
+    let mypy lose track of which signature applied and — if the runtime branch
+    were ever dropped — would pass classification-only kwargs (``y_proba`` /
+    ``labels``) into :func:`compute_regression_metrics`, a ``TypeError`` on the
+    regression path. Nothing probability-shaped may appear here: no
+    ``accuracy`` / ``log_loss`` / ``brier_score`` keys, and no calibration.
+    """
+    X, y = regression_frame
+    result = evaluate(
+        model_name="taylor_rule",
+        target_name="level_regression",
+        X=X,
+        y=y,
+        splitter=WalkForwardSplit(initial_train_size=10, test_size=1),
+        output_dir=tmp_path,
+        use_mlflow=False,
+    )
+    regression_keys = {"rmse", "mae", "r2", "directional_accuracy"}
+    classification_keys = {"accuracy", "balanced_accuracy", "macro_f1", "log_loss", "brier_score"}
+
+    assert set(result.metrics_overall) == regression_keys
+    assert not (classification_keys & set(result.metrics_overall))
+    # Every per-fold entry carries the regression suite (plus the fold tag) and
+    # nothing classification-shaped — proving each fold hit the regression branch.
+    assert result.metrics_per_fold, "regression path produced no per-fold metrics"
+    for entry in result.metrics_per_fold:
+        assert regression_keys <= set(entry)
+        assert not (classification_keys & set(entry))
+    assert result.calibration is None
+
+
 def test_evaluate_rejects_market_baseline_against_regression_target(
     regression_frame: tuple[pd.DataFrame, pd.Series], tmp_path: Path
 ) -> None:
