@@ -31,7 +31,7 @@ No network anywhere in this module.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, overload
 
 from loguru import logger
 import numpy as np
@@ -133,8 +133,17 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         )
         return self
 
+    @overload
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame: ...
+    @overload
+    def transform(self, X: np.ndarray) -> np.ndarray: ...
     def transform(self, X: Any) -> pd.DataFrame | np.ndarray:
         """Return the selected columns, values untouched (NaN preserved).
+
+        A ``DataFrame`` in yields a ``DataFrame`` out; an array in yields an
+        array out (the two ``@overload`` signatures encode that so callers that
+        pass a frame — every caller in this package — keep a statically-known
+        ``DataFrame``).
 
         Shapes
         ------

@@ -20,6 +20,7 @@ import pytest
 from rba.config import load_model_config
 from rba.models import Model, build_model
 from rba.models.selection import FeatureSelector, SelectingModel
+from rba.models.xgb import XGBClassifierWrapper
 from rba.validation import WalkForwardSplit
 
 
@@ -135,7 +136,9 @@ def test_selecting_model_predict_and_proba(base: str) -> None:
     assert preds.shape == (len(X),)
     assert set(np.unique(preds)).issubset({"cut", "hold", "hike"})
     proba = model.predict_proba(X)
-    assert proba.shape == (len(X), len(model.classes_))
+    classes = model.classes_
+    assert classes is not None  # a classification base exposes classes_
+    assert proba.shape == (len(X), len(classes))
     np.testing.assert_allclose(proba.sum(axis=1), np.ones(len(X)), atol=1e-6)
 
 
@@ -160,7 +163,9 @@ def test_selecting_model_base_params_override() -> None:
     model = SelectingModel(
         base_model_name="xgboost_classifier", k=5, base_params={"n_estimators": 10}
     ).fit(X, y)
-    assert model._inner._n_estimators == 10  # override flowed into the base model
+    inner = model._inner
+    assert isinstance(inner, XGBClassifierWrapper)
+    assert inner._n_estimators == 10  # override flowed into the base model
 
 
 def test_selecting_model_reselects_per_fold_in_walk_forward() -> None:
