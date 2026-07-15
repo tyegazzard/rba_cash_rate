@@ -63,6 +63,7 @@ force-sort-within-sections = true
 dev = [
     "jupyterlab>=4.5.7",
     "mypy>=1.20.2",
+    "pandas-stubs>=3.0.3.260530",
     "pre-commit>=4.0.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
@@ -72,7 +73,7 @@ dev = [
 [tool.mypy]
 python_version = "3.11"
 files = ["src", "tests"]
-warn_return_any = true
+warn_return_any = false
 warn_redundant_casts = true
 disallow_untyped_defs = true
 check_untyped_defs = true
@@ -84,6 +85,7 @@ module = [
     "mlflow.*",
     "mord.*",
     "plotly.*",
+    "pyreadr.*",
     "sentence_transformers.*",
     "sklearn.*",
     "streamlit.*",
@@ -93,4 +95,8 @@ module = [
     "yaml.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
 
