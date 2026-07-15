@@ -377,7 +377,7 @@ def _parse(csv_bytes: bytes, *, spec: RbaE2Series) -> pd.DataFrame:
         if col == "Title":
             continue
         if rba_id == spec.rba_series_id:
-            target_col = col
+            target_col = str(col)
             break
     if target_col is None:
         raise ValueError(

@@ -183,7 +183,14 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop(columns=["publication_date"], errors="ignore")
     in_window_obs = df["observation_date"] >= _CALENDAR_VALIDATION_FLOOR
     if not in_window_obs.any():
-        df = df.assign(publication_date=pd.NaT)
+        # All observations are pre-floor: no calendar match exists, so every
+        # publication_date is NaT (a NaT never satisfies ``<= meeting_date``, so
+        # these rows are conservatively excluded from any point-in-time join —
+        # no leakage). Build the column as an explicit datetime64 NaT Series so
+        # the dtype matches the merge path below.
+        df = df.assign(
+            publication_date=pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+        )
         return df[["observation_date", "publication_date", "series_id", "value"]]
 
     min_year = int(df.loc[in_window_obs, "observation_date"].dt.year.min())
@@ -298,7 +305,7 @@ def _parse(csv_bytes: bytes, *, spec: RbaH3Series) -> pd.DataFrame:
         if col == "Title":
             continue
         if rba_id == spec.rba_series_id:
-            target_col = col
+            target_col = str(col)
             break
     if target_col is None:
         raise ValueError(

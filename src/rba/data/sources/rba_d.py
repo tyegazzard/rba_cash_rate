@@ -264,7 +264,7 @@ def fetch(*, force_download: bool = True) -> pd.DataFrame:
     # Annotate the manifest with the total observations contributed by each
     # source table (summed across the logical series we extract from it).
     for entry in manifest:
-        entry["observations"] = obs_counts[entry["table"]]
+        entry["observations"] = obs_counts[str(entry["table"])]
 
     _write_manifest(dest_dir, manifest)
 
@@ -402,7 +402,7 @@ def _parse(csv_bytes: bytes, *, spec: RbaDSeries) -> pd.DataFrame:
         if col == "Title":
             continue
         if rba_id == spec.rba_series_id:
-            target_col = col
+            target_col = str(col)
             break
     if target_col is None:
         raise ValueError(

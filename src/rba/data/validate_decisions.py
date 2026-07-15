@@ -57,7 +57,7 @@ def cross_check_media_releases(
     if missing:
         raise ValueError(f"decisions is missing required columns: {sorted(missing)}")
 
-    failures: list[pd.Series] = []
+    failures: list[pd.DataFrame] = []
 
     # Check 1: every rate change has a media-release URL.
     change_rows = decisions["rate_change_bps"] != 0

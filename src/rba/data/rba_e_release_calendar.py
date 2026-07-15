@@ -285,8 +285,11 @@ def _parse_e2_csv(body: bytes) -> tuple[pd.Timestamp | None, pd.Timestamp | None
         for col, val in pub_row.iloc[0].items():
             if col == title_col or pd.isna(val):
                 continue
-            pub = pd.to_datetime(str(val), errors="coerce")
-            if pd.notna(pub):
+            parsed = pd.to_datetime(str(val), errors="coerce")
+            # ``errors="coerce"`` yields NaT on an unparseable cell; only keep a
+            # genuine Timestamp so ``pub`` stays ``Timestamp | None``.
+            if isinstance(parsed, pd.Timestamp):
+                pub = parsed
                 break
 
     modern = pd.to_datetime(df[title_col], format="%d/%m/%Y", errors="coerce")

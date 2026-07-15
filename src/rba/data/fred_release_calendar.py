@@ -147,7 +147,9 @@ def _us_federal_holidays(year: int) -> frozenset[date]:
     on every call.
     """
     cal = USFederalHolidayCalendar()
-    holidays = cal.holidays(start=f"{year}-01-01", end=f"{year}-12-31")
+    holidays = cal.holidays(
+        start=pd.Timestamp(f"{year}-01-01"), end=pd.Timestamp(f"{year}-12-31")
+    )
     return frozenset(h.date() for h in holidays)
 
 
