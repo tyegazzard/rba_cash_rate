@@ -152,7 +152,10 @@ def test_leading_nan_not_zero_at_series_start(
     feature_cols = [c for c in out.columns if c != "meeting_date"]
     # At least one feature must be NaN (not 0) at the very first meeting, and no
     # feature may be silently zero-filled where it should be NaN.
-    first_row = out.loc[0, feature_cols]
+    # Select columns first (list[str] key → DataFrame) then the first row
+    # positionally → a clean Series; ``.loc[0, list]`` confuses the stub into
+    # inferring a scalar, which has no ``.isna``.
+    first_row = out[feature_cols].iloc[0]
     assert first_row.isna().any(), f"{name} has no leading NaN at row 0"
     # Every feature that is NaN at the start must become populated later (i.e. the
     # NaN is a genuine start-of-series gap, not a wholly-broken column).

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,18 @@ from rba.features.importance import (
     render_markdown,
     write_importance_report,
 )
+
+
+def _cell(table: pd.DataFrame, feature: str, column: str) -> float:
+    """One numeric cell of the importance table as a plain ``float``.
+
+    ``DataFrame.loc[label, label]`` is typed as pandas' broad scalar union
+    (``str | date | complex | …``), which supports none of ``>`` / ``abs`` /
+    ``math.isnan``. The importance columns (``pearson_r`` / ``spearman_r`` /
+    ``mutual_info``) are float-valued by construction, so narrowing to ``float``
+    is provably correct — the cast is a no-op at runtime.
+    """
+    return cast(float, table.loc[feature, column])
 
 
 # -----------------------------------------------------------------------------
@@ -89,8 +102,8 @@ def test_candidate_features_excludes_targets_and_metadata() -> None:
 def test_signal_ranks_above_noise() -> None:
     table = feature_importance(_features())
     imp = table.set_index("feature")
-    assert abs(imp.loc["signal", "pearson_r"]) > abs(imp.loc["noise", "pearson_r"])
-    assert imp.loc["signal", "mutual_info"] > imp.loc["noise", "mutual_info"]
+    assert abs(_cell(imp, "signal", "pearson_r")) > abs(_cell(imp, "noise", "pearson_r"))
+    assert _cell(imp, "signal", "mutual_info") > _cell(imp, "noise", "mutual_info")
     # The table is sorted by mutual information descending.
     mi = table["mutual_info"].dropna().to_numpy()
     assert np.all(np.diff(mi) <= 1e-12)
@@ -111,14 +124,14 @@ def test_n_obs_reflects_non_nan() -> None:
 def test_constant_feature_zero_mi_nan_corr() -> None:
     table = feature_importance(_features()).set_index("feature")
     assert table.loc["const", "mutual_info"] == 0.0
-    assert math.isnan(table.loc["const", "pearson_r"])
+    assert math.isnan(_cell(table, "const", "pearson_r"))
 
 
 def test_sparse_feature_below_mi_floor_is_nan() -> None:
     table = feature_importance(_features()).set_index("feature")
     assert table.loc["sparse", "n_obs"] == 10  # below DEFAULT_MIN_OBS_FOR_MI
-    assert math.isnan(table.loc["sparse", "mutual_info"])
-    assert not math.isnan(table.loc["sparse", "pearson_r"])  # corr still computed
+    assert math.isnan(_cell(table, "sparse", "mutual_info"))
+    assert not math.isnan(_cell(table, "sparse", "pearson_r"))  # corr still computed
 
 
 def test_determinism_same_input_same_table() -> None:
@@ -153,7 +166,7 @@ def test_empty_when_no_target_rows() -> None:
 
 def test_min_obs_override_enables_mi() -> None:
     table = feature_importance(_features(), min_obs_for_mi=5).set_index("feature")
-    assert not math.isnan(table.loc["sparse", "mutual_info"])  # now above the lowered floor
+    assert not math.isnan(_cell(table, "sparse", "mutual_info"))  # now above the lowered floor
 
 
 # -----------------------------------------------------------------------------

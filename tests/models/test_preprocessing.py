@@ -91,12 +91,15 @@ def test_ffill_records_feature_names() -> None:
 def test_balanced_weight_explicit_sample_weight_wins() -> None:
     y = np.array([0, 0, 1])
     w = np.array([3.0, 1.0, 2.0])
-    np.testing.assert_allclose(balanced_sample_weight(y, sample_weight=w), w)
+    got = balanced_sample_weight(y, sample_weight=w)
+    assert got is not None  # an explicit sample_weight is always returned
+    np.testing.assert_allclose(got, w)
 
 
 def test_balanced_weight_matches_sklearn() -> None:
     y = np.array(["hold"] * 7 + ["hike"] * 2 + ["cut"] * 1)
     got = balanced_sample_weight(y, class_weight="balanced")
+    assert got is not None  # "balanced" always yields a weight vector
     np.testing.assert_allclose(got, compute_sample_weight("balanced", y))
 
 

@@ -154,11 +154,20 @@ def test_future_value_never_affects_earlier_changes() -> None:
     base = [100.0 + i for i in range(18)]
     injected = base[:-1] + [_FUTURE_SENTINEL]
 
-    kwargs = dict(
-        abs_diff_columns=["cpi"], pct_change_columns=["cpi"], yoy_columns=["cpi"], horizons=[1, 3]
+    out_base = build_changes(
+        pd.DataFrame({"meeting_date": dates, "cpi": base}),
+        abs_diff_columns=["cpi"],
+        pct_change_columns=["cpi"],
+        yoy_columns=["cpi"],
+        horizons=[1, 3],
     )
-    out_base = build_changes(pd.DataFrame({"meeting_date": dates, "cpi": base}), **kwargs)
-    out_inj = build_changes(pd.DataFrame({"meeting_date": dates, "cpi": injected}), **kwargs)
+    out_inj = build_changes(
+        pd.DataFrame({"meeting_date": dates, "cpi": injected}),
+        abs_diff_columns=["cpi"],
+        pct_change_columns=["cpi"],
+        yoy_columns=["cpi"],
+        horizons=[1, 3],
+    )
 
     for col in out_base.columns:
         if col == "meeting_date":

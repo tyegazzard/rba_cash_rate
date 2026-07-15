@@ -43,6 +43,7 @@ def _Xy(*, labels: str = "str", nan: bool = False, n: int = 40) -> tuple[pd.Data
         X.iloc[0, 0] = np.nan
         X.iloc[5, 1] = np.nan
         X.iloc[11, 2] = np.nan
+    groups: list[int] | list[str]
     if labels == "int":
         groups = [-1, 0, 1]
     else:

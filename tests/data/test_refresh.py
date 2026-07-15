@@ -210,7 +210,8 @@ def test_refresh_isolates_failing_source() -> None:
     assert [r.name for r in summary.succeeded] == ["a", "c"]
     assert [r.name for r in summary.failed] == ["b"]
     assert summary.exit_code == 1
-    assert "simulated WAF 403" in summary.failed[0].error
+    err = summary.failed[0].error
+    assert err is not None and "simulated WAF 403" in err
 
 
 def test_refresh_logs_failure_with_traceback(loguru_messages) -> None:
@@ -260,7 +261,8 @@ def test_refresh_materialise_failure_marks_source_failed() -> None:
 
     summary = run_refresh([SourceSpec(name="a", fetch=_ok_fetch(), materialise=boom_materialise)])
     assert summary.exit_code == 1
-    assert "disk full" in summary.failed[0].error
+    err = summary.failed[0].error
+    assert err is not None and "disk full" in err
 
 
 # -----------------------------------------------------------------------------
