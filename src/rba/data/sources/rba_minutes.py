@@ -136,6 +136,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from typing import TypedDict
 import urllib.error
 import urllib.request
 
@@ -382,7 +383,16 @@ def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
     logger.info("Wrote provenance manifest ({} entries) to {}", len(manifest), metadata_path)
 
 
-def _parse(html: bytes, *, decision_date: pd.Timestamp) -> dict[str, object]:
+class _ParsedMinutes(TypedDict):
+    """Typed shape of :func:`_parse`'s output — one minutes document."""
+
+    title: str
+    dc_date: pd.Timestamp | None
+    paragraphs: list[str]
+    body_text: str
+
+
+def _parse(html: bytes, *, decision_date: pd.Timestamp) -> _ParsedMinutes:
     """Parse one minutes HTML into title / dc_date / body.
 
     Parameters
@@ -539,7 +549,7 @@ def _attach_publication_dates(df: pd.DataFrame) -> pd.DataFrame:
 
 def _softcheck_dc_date(
     *,
-    dc_date: object,
+    dc_date: pd.Timestamp | None,
     publication_date: pd.Timestamp,
     decision_date: pd.Timestamp,
     url: str,
@@ -605,11 +615,11 @@ def _validate_cross_check(minutes: pd.DataFrame, f11_meetings: pd.DataFrame) -> 
     if not minutes.empty:
         not_later = minutes[minutes["publication_date"] <= minutes["decision_date"]]
         if not not_later.empty:
-            sample = not_later[["decision_date", "publication_date", "url"]].head(5)
+            sample_df = not_later[["decision_date", "publication_date", "url"]].head(5)
             raise ValueError(
                 f"{len(not_later)} minutes row(s) where publication_date <= "
                 "decision_date (minutes must be released after the announcement). "
-                f"Sample:\n{sample.to_string(index=False)}"
+                f"Sample:\n{sample_df.to_string(index=False)}"
             )
 
 

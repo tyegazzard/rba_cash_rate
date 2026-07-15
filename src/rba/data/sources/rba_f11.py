@@ -168,8 +168,14 @@ def _parse(html: bytes) -> pd.DataFrame:
     if table is None:
         raise ValueError(f"No <table id={_TABLE_ID!r}> in HTML; page layout changed.")
 
+    tbody = table.find("tbody")
+    if tbody is None:
+        raise ValueError(
+            f"No <tbody> in <table id={_TABLE_ID!r}>; page layout changed."
+        )
+
     rows = []
-    for tr in table.find("tbody").find_all("tr"):
+    for tr in tbody.find_all("tr"):
         th = tr.find("th", attrs={"scope": "row"})
         if th is None:
             continue
@@ -186,7 +192,13 @@ def _parse(html: bytes) -> pd.DataFrame:
         if len(tds) >= 3:
             for a in tds[2].find_all("a", href=True):
                 href = a["href"]
-                label = (a.get("aria-label") or a.get_text(strip=True)).lower()
+                if not isinstance(href, str):
+                    # F1.1 anchors carry a single-valued href; a list-valued
+                    # (malformed) attribute is skipped rather than mis-parsed.
+                    continue
+                aria = a.get("aria-label")
+                aria_text = aria if isinstance(aria, str) else ""
+                label = (aria_text or a.get_text(strip=True)).lower()
                 if "minutes" in href or "minutes" in label:
                     minutes_url = href
                 elif "media-release" in href or "statement" in label:

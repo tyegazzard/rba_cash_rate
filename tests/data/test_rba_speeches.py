@@ -21,7 +21,7 @@ no-F11 archive-completeness cross-check.
 
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import pandas as pd
 import pytest
 
@@ -41,6 +41,18 @@ from rba.data.sources.rba_speeches import (
     _split_speaker_role,
     _validate_cross_check,
 )
+
+
+def _content_div(soup: BeautifulSoup) -> Tag:
+    """The ``<div id='content'>`` node, narrowed from ``Tag | None``.
+
+    The fixtures always contain it, so a miss is a broken fixture rather than a
+    real data case — the assert documents that invariant for the type checker.
+    """
+    div = soup.find("div", id="content")
+    assert div is not None, "fixture missing <div id='content'>"
+    return div
+
 
 # -----------------------------------------------------------------------------
 # Synthetic HTML fixtures — archive index + year page + per-speech pages.
@@ -477,7 +489,7 @@ def test_extract_author_normalises() -> None:
 
 def test_extract_blocks_drops_nav_headings_and_rails() -> None:
     soup = BeautifulSoup(_fixture_modern_speech(), "html.parser")
-    blocks = _extract_blocks(soup.find("div", id="content"))
+    blocks = _extract_blocks(_content_div(soup))
     assert "Related Information" not in blocks
     assert "The international economy" in blocks
 

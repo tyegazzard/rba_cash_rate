@@ -12,7 +12,7 @@ variants (modern ``<div class="rss-mr-content">`` vs older
 
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import pandas as pd
 import pytest
 
@@ -25,6 +25,18 @@ from rba.data.sources.rba_media_releases import (
     _select_targets,
     _validate_cross_check,
 )
+
+
+def _content_div(soup: BeautifulSoup) -> Tag:
+    """The ``<div id='content'>`` node, narrowed from ``Tag | None``.
+
+    The fixtures always contain it, so a miss is a broken fixture rather than a
+    real data case — the assert documents that invariant for the type checker.
+    """
+    div = soup.find("div", id="content")
+    assert div is not None, "fixture missing <div id='content'>"
+    return div
+
 
 # -----------------------------------------------------------------------------
 # Synthetic HTML fixtures — one per era. Mirror the real RBA layout closely
@@ -290,14 +302,14 @@ def test_extract_governor_returns_none_on_unrecognised_title() -> None:
 
 def test_extract_paragraphs_prefers_modern_container() -> None:
     soup = BeautifulSoup(_fixture_modern_lowe(), "html.parser")
-    paras = _extract_paragraphs(soup.find("div", id="content"))
+    paras = _extract_paragraphs(_content_div(soup))
     assert len(paras) == 3
     assert all("Media and Communications" not in p for p in paras)
 
 
 def test_extract_paragraphs_falls_back_for_legacy_layout() -> None:
     soup = BeautifulSoup(_fixture_legacy_fraser(), "html.parser")
-    paras = _extract_paragraphs(soup.find("div", id="content"))
+    paras = _extract_paragraphs(_content_div(soup))
     assert len(paras) == 2
     assert all("Grenville" not in p for p in paras)
 

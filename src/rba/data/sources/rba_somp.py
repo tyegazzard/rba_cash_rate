@@ -149,6 +149,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from typing import TypedDict
 import urllib.error
 import urllib.request
 
@@ -513,7 +514,16 @@ def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
     logger.info("Wrote provenance manifest ({} entries) to {}", len(manifest), metadata_path)
 
 
-def _parse(html: bytes, *, decision_date: pd.Timestamp) -> dict[str, object]:
+class _ParsedSoMP(TypedDict):
+    """Typed shape of :func:`_parse`'s output — one SoMP Overview document."""
+
+    title: str
+    publication_date: pd.Timestamp
+    paragraphs: list[str]
+    body_text: str
+
+
+def _parse(html: bytes, *, decision_date: pd.Timestamp) -> _ParsedSoMP:
     """Parse one SoMP Overview HTML into title / publication_date / body.
 
     Parameters

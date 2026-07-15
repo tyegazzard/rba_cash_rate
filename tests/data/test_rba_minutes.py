@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import pandas as pd
 import pytest
 
@@ -34,6 +34,18 @@ from rba.data.sources.rba_minutes import (
     _softcheck_dc_date,
     _validate_cross_check,
 )
+
+
+def _content_div(soup: BeautifulSoup) -> Tag:
+    """The ``<div id='content'>`` node, narrowed from ``Tag | None``.
+
+    The fixtures always contain it, so a miss is a broken fixture rather than a
+    real data case — the assert documents that invariant for the type checker.
+    """
+    div = soup.find("div", id="content")
+    assert div is not None, "fixture missing <div id='content'>"
+    return div
+
 
 # -----------------------------------------------------------------------------
 # Synthetic HTML fixtures — mirror the real RBA minutes layout closely enough
@@ -265,14 +277,14 @@ def test_extract_dc_date_none_on_unparseable() -> None:
 
 def test_extract_blocks_drops_nav_headings() -> None:
     soup = BeautifulSoup(_fixture_modern_board(), "html.parser")
-    blocks = _extract_blocks(soup.find("div", id="content"))
+    blocks = _extract_blocks(_content_div(soup))
     assert "Related Information" not in blocks
     assert all("addresses the media" not in b for b in blocks)
 
 
 def test_extract_blocks_preserves_document_order() -> None:
     soup = BeautifulSoup(_fixture_legacy_2008(), "html.parser")
-    blocks = _extract_blocks(soup.find("div", id="content"))
+    blocks = _extract_blocks(_content_div(soup))
     assert blocks.index("Members Present") < blocks.index("Financial Markets")
     assert blocks.index("Financial Markets") < blocks.index("The Decision")
 

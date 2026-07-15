@@ -163,6 +163,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from typing import TypedDict
 import urllib.error
 import urllib.request
 
@@ -542,7 +543,19 @@ def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
     )
 
 
-def _parse(html: bytes, *, speech_id: str) -> dict[str, object]:
+class _ParsedSpeech(TypedDict):
+    """Typed shape of :func:`_parse`'s output — one speech document."""
+
+    title: str
+    speech_type: str | None
+    publication_date: pd.Timestamp
+    speaker: str | None
+    speaker_role: str | None
+    paragraphs: list[str]
+    body_text: str
+
+
+def _parse(html: bytes, *, speech_id: str) -> _ParsedSpeech:
     """Parse one speech HTML into its event-keyed fields.
 
     Parameters
@@ -836,11 +849,11 @@ def _validate_cross_check(speeches: pd.DataFrame, targets: pd.DataFrame) -> None
     pubs = pd.to_datetime(speeches["publication_date"], errors="coerce")
     bad_date = speeches[pubs.isna() | (pubs < _CALENDAR_VALIDATION_FLOOR)]
     if not bad_date.empty:
-        sample = bad_date[["speech_id", "publication_date"]].head(5)
+        sample_df = bad_date[["speech_id", "publication_date"]].head(5)
         raise ValueError(
             f"{len(bad_date)} speech row(s) with a missing or pre-floor "
             f"publication_date (floor {_CALENDAR_VALIDATION_FLOOR.date()}). "
-            f"Sample:\n{sample.to_string(index=False)}"
+            f"Sample:\n{sample_df.to_string(index=False)}"
         )
 
     _softcheck_archive_year(speeches, targets)

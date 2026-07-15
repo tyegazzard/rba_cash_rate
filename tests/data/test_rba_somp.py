@@ -18,7 +18,7 @@ era), which is the no-leakage finding specific to this source.
 
 from __future__ import annotations
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import pandas as pd
 import pytest
 
@@ -34,6 +34,18 @@ from rba.data.sources.rba_somp import (
     _softcheck_publication_gap,
     _validate_cross_check,
 )
+
+
+def _content_div(soup: BeautifulSoup) -> Tag:
+    """The ``<div id='content'>`` node, narrowed from ``Tag | None``.
+
+    The fixtures always contain it, so a miss is a broken fixture rather than a
+    real data case — the assert documents that invariant for the type checker.
+    """
+    div = soup.find("div", id="content")
+    assert div is not None, "fixture missing <div id='content'>"
+    return div
+
 
 # -----------------------------------------------------------------------------
 # Synthetic HTML fixtures — archive index + Overview pages per era.
@@ -307,14 +319,14 @@ def test_extract_dc_date_none_on_unparseable() -> None:
 
 def test_extract_blocks_drops_nav_headings_and_rails() -> None:
     soup = BeautifulSoup(_fixture_modern_overview(), "html.parser")
-    blocks = _extract_blocks(soup.find("div", id="content"))
+    blocks = _extract_blocks(_content_div(soup))
     assert "Related Information" not in blocks
     assert "Contents" not in blocks
 
 
 def test_extract_blocks_preserves_document_order() -> None:
     soup = BeautifulSoup(_fixture_modern_overview(), "html.parser")
-    blocks = _extract_blocks(soup.find("div", id="content"))
+    blocks = _extract_blocks(_content_div(soup))
     assert blocks.index("Inflation has remained higher than expected.") < blocks.index(
         "The labour market has eased."
     )

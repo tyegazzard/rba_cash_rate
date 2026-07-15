@@ -139,6 +139,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from typing import TypedDict
 import urllib.error
 import urllib.request
 
@@ -392,7 +393,17 @@ def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
     logger.info("Wrote provenance manifest ({} entries) to {}", len(manifest), metadata_path)
 
 
-def _parse(html: bytes, *, decision_date: pd.Timestamp) -> dict[str, object]:
+class _ParsedMediaRelease(TypedDict):
+    """Typed shape of :func:`_parse`'s output — one media-release document."""
+
+    title: str
+    publication_date: pd.Timestamp
+    governor: str | None
+    paragraphs: list[str]
+    body_text: str
+
+
+def _parse(html: bytes, *, decision_date: pd.Timestamp) -> _ParsedMediaRelease:
     """Parse one release HTML into title / publication_date / governor / body.
 
     Parameters
@@ -555,11 +566,11 @@ def _validate_cross_check(media: pd.DataFrame, f11_meetings: pd.DataFrame) -> No
     if not media.empty:
         mismatched = media[media["publication_date"] != media["decision_date"]]
         if not mismatched.empty:
-            sample = mismatched[["decision_date", "publication_date", "url"]].head(5)
+            sample_df = mismatched[["decision_date", "publication_date", "url"]].head(5)
             raise ValueError(
                 f"{len(mismatched)} media-release row(s) where "
                 "publication_date != decision_date (post-decision statements "
-                f"must be same-day). Sample:\n{sample.to_string(index=False)}"
+                f"must be same-day). Sample:\n{sample_df.to_string(index=False)}"
             )
 
 
