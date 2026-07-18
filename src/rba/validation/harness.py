@@ -72,6 +72,14 @@ __all__ = ["EvaluationResult", "evaluate"]
 
 _DEFAULT_RUNS_DIR = PROJ_ROOT / "reports" / "runs"
 
+# Tasks scored the classification way — discrete labels with ``predict_proba``.
+# ``ordinal`` (mord threshold models) predicts discrete ordered classes and
+# exposes probabilities, so it shares the classification metric / calibration
+# path; only the ``models.yaml`` ``task`` string differs. ``regression`` is the
+# sole other branch.
+_CLASSIFICATION_TASKS: frozenset[str] = frozenset({"classification", "ordinal"})
+_SUPPORTED_TASKS: frozenset[str] = _CLASSIFICATION_TASKS | {"regression"}
+
 
 @dataclass
 class EvaluationResult:
@@ -132,6 +140,7 @@ def evaluate(
     y: pd.Series,
     splitter: WalkForwardSplit,
     market_model_name: str | None = None,
+    model_cfg: dict[str, Any] | None = None,
     output_dir: Path | None = None,
     run_id: str | None = None,
     use_mlflow: bool = True,
@@ -165,6 +174,15 @@ def evaluate(
         raised at :meth:`~rba.models.baselines.MarketImplied.predict` per its
         coverage-guard behaviour) are recorded as ``y_pred_market = NaN`` and
         drop from :func:`~rba.validation.metrics.hit_rate_vs_market` naturally.
+    model_cfg
+        Optional pre-resolved ``models.yaml``-shaped config to build the main
+        model from, **overriding** the ``load_model_config(model_name)`` lookup.
+        This is the hook the §8 held-out evaluation uses to score a *tuned*
+        config (hyper-parameters found by :func:`~rba.validation.tuning.run_search`
+        on dev) without registering it in ``models.yaml``. ``model_name`` is
+        still used for the run id / manifest / task resolution, so the override's
+        ``task`` must match ``model_name``'s. ``None`` (default) resolves the
+        config from ``models.yaml`` as before.
     output_dir
         Root directory for the run subfolder. Default ``reports/runs/``.
     run_id
@@ -194,18 +212,18 @@ def evaluate(
             f"evaluate: len(X)={len(X)} != len(y)={len(y)} — align X to y.index first."
         )
 
-    main_cfg = load_model_config(model_name)
+    main_cfg = model_cfg if model_cfg is not None else load_model_config(model_name)
     task = main_cfg.get("task", "classification")
-    if task not in ("classification", "regression"):
+    if task not in _SUPPORTED_TASKS:
         raise ValueError(
             f"evaluate: unsupported task {task!r} for model {model_name!r} "
-            "(expected 'classification' or 'regression'; ordinal etc. not yet wired)."
+            f"(expected one of {sorted(_SUPPORTED_TASKS)})."
         )
     market_cfg = load_model_config(market_model_name) if market_model_name else None
-    if market_cfg is not None and task != "classification":
+    if market_cfg is not None and task not in _CLASSIFICATION_TASKS:
         raise ValueError(
             f"evaluate: market_model_name={market_model_name!r} only compares against "
-            f"classification models; main model {model_name!r} is {task!r}."
+            f"classification/ordinal models; main model {model_name!r} is {task!r}."
         )
 
     fold_records = _run_walk_forward(
@@ -307,7 +325,7 @@ def _run_walk_forward(
 
         y_proba: np.ndarray | None = None
         classes: np.ndarray | None = None
-        if task == "classification":
+        if task in _CLASSIFICATION_TASKS:
             try:
                 y_proba = np.asarray(model.predict_proba(X_test), dtype=np.float64)
                 classes = np.asarray(model.classes_)  # type: ignore[attr-defined]
@@ -416,7 +434,7 @@ def _score_all_folds(
         )
         warnings.filterwarnings("ignore", message=r"R\^2 score is not well-defined")
         for rec in fold_records:
-            if task == "classification":
+            if task in _CLASSIFICATION_TASKS:
                 entry = compute_classification_metrics(
                     rec.y_true,
                     rec.y_pred,
@@ -430,7 +448,7 @@ def _score_all_folds(
     all_true = np.concatenate([rec.y_true for rec in fold_records])
     all_pred = np.concatenate([rec.y_pred for rec in fold_records])
 
-    if task == "classification":
+    if task in _CLASSIFICATION_TASKS:
         # Use the first fold's ``classes`` as the canonical column order —
         # every baseline in models.yaml produces a stable ``classes_`` sorted
         # order (per :func:`~rba.validation.metrics.confusion_matrix`).

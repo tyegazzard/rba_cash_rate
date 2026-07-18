@@ -1,0 +1,67 @@
+{
+  "model_name": "lightgbm_classifier",
+  "task": "classification",
+  "int_labels": false,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.572972972972973,
+  "best_params": {
+    "n_estimators": 120,
+    "num_leaves": 119,
+    "learning_rate": 0.199791610831131,
+    "min_data_in_leaf": 6
+  },
+  "best_model_cfg": {
+    "module": "rba.models.lgbm",
+    "class": "LightGBMClassifierWrapper",
+    "task": "classification",
+    "default": {
+      "n_estimators": 120,
+      "num_leaves": 119,
+      "learning_rate": 0.199791610831131,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "class_weight": "balanced",
+      "min_data_in_leaf": 6
+    },
+    "search_space": {
+      "n_estimators": {
+        "type": "int",
+        "low": 100,
+        "high": 1500
+      },
+      "num_leaves": {
+        "type": "int",
+        "low": 8,
+        "high": 128
+      },
+      "learning_rate": {
+        "type": "loguniform",
+        "low": 0.005,
+        "high": 0.3
+      },
+      "min_data_in_leaf": {
+        "type": "int",
+        "low": 5,
+        "high": 50
+      }
+    },
+    "name": "lightgbm_classifier"
+  },
+  "n_trials": 6,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    0.3440651207601524,
+    5.109923012417331,
+    0.5687808871869198
+  ],
+  "classes": [
+    "cut",
+    "hike",
+    "hold"
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T23:38:21+00:00",
+  "git_commit": null,
+  "notes": ""
+}

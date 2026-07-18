@@ -1,0 +1,55 @@
+{
+  "model_name": "logistic_regression",
+  "task": "classification",
+  "int_labels": false,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.49189189189189186,
+  "best_params": {
+    "C": 0.46633387787501157,
+    "penalty": "l2"
+  },
+  "best_model_cfg": {
+    "module": "rba.models.sklearn_wrappers",
+    "class": "LogisticRegressionWrapper",
+    "task": "classification",
+    "default": {
+      "penalty": "l2",
+      "C": 0.46633387787501157,
+      "class_weight": "balanced",
+      "max_iter": 1000,
+      "solver": "lbfgs"
+    },
+    "search_space": {
+      "C": {
+        "type": "loguniform",
+        "low": 0.001,
+        "high": 100
+      },
+      "penalty": {
+        "type": "categorical",
+        "choices": [
+          "l1",
+          "l2"
+        ]
+      }
+    },
+    "name": "logistic_regression"
+  },
+  "n_trials": 9,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    0.19824663911563417,
+    0.8947456074463065,
+    5.637604323698336
+  ],
+  "classes": [
+    "cut",
+    "hike",
+    "hold"
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T02:30:40+00:00",
+  "git_commit": null,
+  "notes": ""
+}

@@ -209,6 +209,23 @@ selecting_xgboost:
     method: { type: categorical, choices: [mutual_info, f_classif] }
 
 # ---------------------------------------------------------------------------
+# Imbalance: SMOTE meta-model (compare against class_weight='balanced')
+# Per-fold SMOTE oversampling of the training data, then a base model with its
+# class-weight balancing turned OFF — so it isolates SMOTE vs. class-weight.
+# ---------------------------------------------------------------------------
+smote_xgboost:
+  module: rba.models.imbalance
+  class: SMOTEModel
+  task: classification
+  description: "Per-fold SMOTE oversampling wrapped around a base model."
+  default:
+    base_model_name: xgboost_classifier
+    k_neighbors: 5
+    base_params: { class_weight: null }   # SMOTE replaces class-weight balancing
+  search_space:
+    k_neighbors: { type: int, low: 3, high: 10 }
+
+# ---------------------------------------------------------------------------
 # Ensembles
 # ---------------------------------------------------------------------------
 voting_ensemble:

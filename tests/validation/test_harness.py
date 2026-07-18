@@ -235,6 +235,102 @@ def test_evaluate_rejects_market_baseline_against_regression_target(
 
 
 # =============================================================================
+# Ordinal path — mord threshold model shares the classification metric branch.
+# =============================================================================
+def test_evaluate_ordinal_task_runs_classification_metrics(
+    classification_frame: tuple[pd.DataFrame, pd.Series], tmp_path: Path
+) -> None:
+    """``task: ordinal`` (ordinal_logistic) scores through the classification suite.
+
+    The mord threshold model predicts discrete ordered classes and exposes
+    ``predict_proba``, so :func:`evaluate` treats it like classification: full
+    metric suite + calibration, no ``ValueError`` on the (previously unwired)
+    ordinal task.
+    """
+    X, y_str = classification_frame
+    # Signed-int ordinal encoding (cut < hold < hike) — sorted order IS ordinal
+    # order, which is what mord's LabelEncoder requires.
+    y = y_str.map({"cut": -1, "hold": 0, "hike": 1}).astype(int)
+    result = evaluate(
+        model_name="ordinal_logistic",
+        target_name="three_class",
+        X=X,
+        y=y,
+        splitter=WalkForwardSplit(initial_train_size=20, test_size=1),
+        output_dir=tmp_path,
+        use_mlflow=False,
+    )
+    assert result.task == "ordinal"
+    assert {
+        "accuracy",
+        "balanced_accuracy",
+        "macro_f1",
+        "log_loss",
+        "brier_score",
+        "confusion_matrix",
+    } <= set(result.metrics_overall)
+    # Ordinal exposes proba → calibration lands on disk, same as classification.
+    assert result.calibration_path is not None and result.calibration_path.exists()
+
+
+# =============================================================================
+# model_cfg override — the §8 tuned-config hook.
+# =============================================================================
+def test_evaluate_model_cfg_override_builds_the_passed_config(
+    classification_frame: tuple[pd.DataFrame, pd.Series], tmp_path: Path
+) -> None:
+    """A ``model_cfg`` override replaces the ``models.yaml`` lookup for the main model.
+
+    The §8 held-out path scores tuned configs this way. Here a logistic-regression
+    config with a distinctive ``C`` is passed; the run must succeed and carry the
+    override's task, proving the lookup was bypassed.
+    """
+    X, y = classification_frame
+    tuned_cfg = {
+        "module": "rba.models.sklearn_wrappers",
+        "class": "LogisticRegressionWrapper",
+        "task": "classification",
+        "default": {"C": 0.037, "class_weight": "balanced", "max_iter": 500},
+    }
+    result = evaluate(
+        model_name="logistic_regression",
+        target_name="three_class",
+        X=X,
+        y=y,
+        splitter=WalkForwardSplit(initial_train_size=20, test_size=1),
+        model_cfg=tuned_cfg,
+        output_dir=tmp_path,
+        use_mlflow=False,
+    )
+    assert result.task == "classification"
+    assert result.n_folds == 20
+    assert result.manifest_path is not None and result.manifest_path.exists()
+
+
+def test_evaluate_model_cfg_override_rejects_unsupported_task(
+    classification_frame: tuple[pd.DataFrame, pd.Series], tmp_path: Path
+) -> None:
+    """An override carrying a bogus task is rejected by the task guard."""
+    X, y = classification_frame
+    with pytest.raises(ValueError, match="unsupported task"):
+        evaluate(
+            model_name="logistic_regression",
+            target_name="three_class",
+            X=X,
+            y=y,
+            splitter=WalkForwardSplit(initial_train_size=20, test_size=1),
+            model_cfg={
+                "module": "rba.models.sklearn_wrappers",
+                "class": "LogisticRegressionWrapper",
+                "task": "not_a_task",
+                "default": {},
+            },
+            output_dir=tmp_path,
+            use_mlflow=False,
+        )
+
+
+# =============================================================================
 # Market-baseline integration — hit-rate-vs-market populates the manifest.
 # =============================================================================
 def test_evaluate_with_market_baseline_populates_hit_rate(

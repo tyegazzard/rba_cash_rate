@@ -31,6 +31,13 @@ from rba.validation.metrics import (
     r2,
     rmse,
 )
+from rba.validation.thresholds import (
+    ThresholdTuner,
+    collect_oof_proba,
+    predict_weighted,
+    tune_class_weights,
+)
+from rba.validation.tuning import SearchResult, run_search
 
 __all__ = [
     "EvaluationResult",
@@ -54,4 +61,10 @@ __all__ = [
     "r2",
     "reliability_diagram_data",
     "rmse",
+    "run_search",
+    "SearchResult",
+    "ThresholdTuner",
+    "collect_oof_proba",
+    "predict_weighted",
+    "tune_class_weights",
 ]

@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 115 / 157 (73%)
+Progress: 128 / 157 (82%)
 
 ## 1. Problem definition
 
@@ -203,23 +203,23 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 ### Tuning & imbalance
 - [x] Feature selection / dimensionality reduction for p≫n, fit per-fold in walk-forward CV
-- [ ] Use class_weight='balanced' as default for classifiers
-- [ ] Run threshold-tuning experiments per classifier
-- [ ] Run SMOTE experiment (compare against class-weight)
-- [ ] Hyperparameter search (Optuna or sklearn) within walk-forward CV only
-- [ ] Never tune on the held-out test set
+- [x] Use class_weight='balanced' as default for classifiers
+- [x] Run threshold-tuning experiments per classifier
+- [x] Run SMOTE experiment (compare against class-weight)
+- [x] Hyperparameter search (Optuna or sklearn) within walk-forward CV only
+- [x] Never tune on the held-out test set
 
 ## 8. Model evaluation
 
-- [ ] Run all models against held-out test window
-- [ ] Compare against all 4 baselines with paired metrics table
-- [ ] Generate confusion matrix per model per target
-- [ ] Generate calibration plot per probabilistic model
-- [ ] Compute hit rate vs market-implied baseline
-- [ ] Conduct error analysis: when does the best model fail? (regime, cycle phase, surprise meetings)
-- [ ] Build ensemble (stacking or voting) and compare against individual best
-- [ ] Write reports/results.md summarising findings
-- [ ] Save best model artifacts to MLflow registry
+- [x] Run all models against held-out test window (expanding walk-forward; dev-tuned configs)
+- [x] Compare against all 4 baselines with paired metrics table (Taylor on regression/directional footing)
+- [x] Generate confusion matrix per model per target
+- [x] Generate calibration plot per probabilistic model (reliability HTML + per-class ECE)
+- [x] Compute hit rate vs market-implied baseline (market rate derived from raw ASX IB curve)
+- [x] Conduct error analysis: when does the best model fail? (regime, cycle phase, surprise meetings)
+- [x] Build ensemble (stacking or voting) and compare against individual best
+- [x] Write reports/results.md summarising findings
+- [~] Save best model artifacts to MLflow registry (local reports/best_model/ saved; MLflow registry upstream-blocked, wired to degrade gracefully)
 
 ## 9. Deployment & monitoring
 

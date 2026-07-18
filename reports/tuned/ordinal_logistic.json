@@ -1,0 +1,44 @@
+{
+  "model_name": "ordinal_logistic",
+  "task": "ordinal",
+  "int_labels": true,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.5837837837837838,
+  "best_params": {
+    "alpha": 0.005899486503300307
+  },
+  "best_model_cfg": {
+    "module": "rba.models.ordinal",
+    "class": "OrdinalLogistic",
+    "task": "ordinal",
+    "description": "Threshold-based ordinal regression via mord.",
+    "default": {
+      "alpha": 0.005899486503300307
+    },
+    "search_space": {
+      "alpha": {
+        "type": "loguniform",
+        "low": 0.001,
+        "high": 100
+      }
+    },
+    "name": "ordinal_logistic"
+  },
+  "n_trials": 19,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    0.22809311804149512,
+    16.25495923229938,
+    0.2697130333074926
+  ],
+  "classes": [
+    -1,
+    0,
+    1
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T23:51:53+00:00",
+  "git_commit": null,
+  "notes": ""
+}

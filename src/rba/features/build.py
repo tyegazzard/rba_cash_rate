@@ -53,16 +53,16 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable, Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from loguru import logger
 import pandas as pd
 
-from rba.config import PROCESSED_DATA_DIR, load_features_config
+from rba.config import PROCESSED_DATA_DIR, TEST_WINDOW_START, load_features_config
 from rba.data import align
 from rba.data.targets import build_target
 from rba.features import versioning
@@ -202,6 +202,80 @@ def build_xy(
     y = build_target(frame, target_cfg, int_labels=int_labels)
     x = frame.loc[y.index, feature_columns(frame)].copy()
     return x, y
+
+
+class DevTestSplit(NamedTuple):
+    """The dev / held-out-test partition of a meeting-indexed ``(X, y)``.
+
+    ``x_dev`` / ``y_dev`` are everything **before** the test window — the only
+    data any tuning, threshold selection, resampling, or hyper-parameter search
+    may see. ``x_test`` / ``y_test`` are the untouchable §8 hold-out.
+    """
+
+    x_dev: pd.DataFrame
+    y_dev: pd.Series
+    x_test: pd.DataFrame
+    y_test: pd.Series
+
+
+def dev_test_split(
+    frame: pd.DataFrame,
+    target_cfg: Mapping[str, Any],
+    *,
+    test_start: date = TEST_WINDOW_START,
+    int_labels: bool = False,
+) -> DevTestSplit:
+    """Assemble ``(X, y)`` and partition at the fixed held-out test boundary.
+
+    Meetings whose ``meeting_date`` is on/after ``test_start`` form the **test**
+    window (default :data:`rba.config.TEST_WINDOW_START`); everything earlier is
+    **dev**. This is the single entry point the §7 tuning and §8 evaluation code
+    uses to enforce CHECKLIST §1.6 / "never tune on the held-out test set": the
+    tuner runs walk-forward CV over ``x_dev`` / ``y_dev`` only, and ``x_test`` is
+    scored exactly once at the end. ``X`` is leakage-free by construction (built
+    via :func:`build_xy`).
+
+    Parameters
+    ----------
+    frame
+        Meeting-indexed feature frame carrying ``meeting_date`` plus the target's
+        ``source_columns`` (``features.parquet`` / ``master.parquet``).
+    target_cfg
+        A target entry from :func:`rba.config.load_target_config`.
+    test_start
+        The first test-window meeting date. Defaults to the project-wide
+        :data:`~rba.config.TEST_WINDOW_START`; overridable for tests.
+    int_labels
+        Forwarded to :func:`build_xy` (classification integer labels).
+
+    Returns
+    -------
+    DevTestSplit
+        ``(x_dev, y_dev, x_test, y_test)``, each a leakage-free slice aligned on
+        its own index.
+
+    Shapes
+    ------
+    frame: (n_meetings, n_columns) ->
+        x_dev: (n_dev, n_features), y_dev: (n_dev,),
+        x_test: (n_test, n_features), y_test: (n_test,).
+    """
+    x, y = build_xy(frame, target_cfg, int_labels=int_labels)
+    meeting_dates = pd.to_datetime(frame.loc[y.index, _MEETING_KEY])
+    is_test = meeting_dates >= pd.Timestamp(test_start)
+    split = DevTestSplit(
+        x_dev=x.loc[~is_test],
+        y_dev=y.loc[~is_test],
+        x_test=x.loc[is_test],
+        y_test=y.loc[is_test],
+    )
+    logger.debug(
+        "dev_test_split(test_start={}): dev={} rows, test={} rows.",
+        test_start,
+        len(split.y_dev),
+        len(split.y_test),
+    )
+    return split
 
 
 # -----------------------------------------------------------------------------

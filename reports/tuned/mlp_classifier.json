@@ -1,0 +1,83 @@
+{
+  "model_name": "mlp_classifier",
+  "task": "classification",
+  "int_labels": false,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.4594594594594595,
+  "best_params": {
+    "hidden_layer_sizes": [
+      64
+    ],
+    "alpha": 0.04731382207870571,
+    "learning_rate_init": 0.00633037894480421
+  },
+  "best_model_cfg": {
+    "module": "rba.models.sklearn_wrappers",
+    "class": "MLPClassifierWrapper",
+    "task": "classification",
+    "default": {
+      "hidden_layer_sizes": [
+        64
+      ],
+      "activation": "relu",
+      "alpha": 0.04731382207870571,
+      "learning_rate_init": 0.00633037894480421,
+      "max_iter": 300,
+      "early_stopping": true
+    },
+    "search_space": {
+      "hidden_layer_sizes": {
+        "type": "categorical",
+        "choices": [
+          [
+            32
+          ],
+          [
+            64
+          ],
+          [
+            64,
+            32
+          ],
+          [
+            128,
+            64
+          ],
+          [
+            128,
+            64,
+            32
+          ]
+        ]
+      },
+      "alpha": {
+        "type": "loguniform",
+        "low": 1e-05,
+        "high": 0.1
+      },
+      "learning_rate_init": {
+        "type": "loguniform",
+        "low": 0.0001,
+        "high": 0.01
+      }
+    },
+    "name": "mlp_classifier"
+  },
+  "n_trials": 3,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    1.2286774209705273,
+    0.11248873053059202,
+    7.23524275255675
+  ],
+  "classes": [
+    "cut",
+    "hike",
+    "hold"
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T23:47:24+00:00",
+  "git_commit": null,
+  "notes": ""
+}

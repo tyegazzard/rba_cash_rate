@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,15 @@ MLRUNS_DIR = PROJ_ROOT / "mlruns"
 MLFLOW_TRACKING_URI = MLRUNS_DIR.as_uri()
 
 RANDOM_SEED = 12
+
+# The held-out test window (CHECKLIST §1.6): meetings on/after this date are the
+# untouchable evaluation set — never used for tuning, threshold selection, SMOTE,
+# or hyperparameter search (all of those run on the pre-test "dev" portion via
+# walk-forward CV). 2022-05-01 is the start of the RBA's 2022–23 tightening cycle,
+# so the window covers ≥1 hike AND ≥1 cut cycle (16 hikes / 20 holds / 3 cuts,
+# 39 meetings) and aligns with ASX 30-day-futures coverage (from 2022-04). Split
+# via ``rba.features.build.dev_test_split``.
+TEST_WINDOW_START = date(2022, 5, 1)
 
 try:
     from tqdm import tqdm

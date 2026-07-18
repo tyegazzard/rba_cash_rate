@@ -1,0 +1,61 @@
+{
+  "model_name": "svm_classifier",
+  "task": "classification",
+  "int_labels": false,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.5054054054054055,
+  "best_params": {
+    "kernel": "linear",
+    "C": 0.03474087187086356,
+    "gamma": 0.00038138629873891544
+  },
+  "best_model_cfg": {
+    "module": "rba.models.sklearn_wrappers",
+    "class": "SVMClassifierWrapper",
+    "task": "classification",
+    "default": {
+      "kernel": "linear",
+      "C": 0.03474087187086356,
+      "gamma": 0.00038138629873891544,
+      "class_weight": "balanced",
+      "probability": true
+    },
+    "search_space": {
+      "kernel": {
+        "type": "categorical",
+        "choices": [
+          "linear",
+          "rbf"
+        ]
+      },
+      "C": {
+        "type": "loguniform",
+        "low": 0.01,
+        "high": 100
+      },
+      "gamma": {
+        "type": "loguniform",
+        "low": 0.0001,
+        "high": 10
+      }
+    },
+    "name": "svm_classifier"
+  },
+  "n_trials": 40,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    4.313934171454455,
+    0.07706749476695753,
+    3.0078435610211978
+  ],
+  "classes": [
+    "cut",
+    "hike",
+    "hold"
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T23:41:15+00:00",
+  "git_commit": null,
+  "notes": ""
+}

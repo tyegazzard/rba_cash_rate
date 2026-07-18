@@ -167,10 +167,11 @@ class LogisticRegressionWrapper(_DensePipelineClassifier):
     Parameters
     ----------
     penalty : str, default ``"l2"``
-        Regularisation norm. Note ``penalty='l1'`` requires ``solver`` in
-        ``{'liblinear', 'saga'}``; the ``models.yaml`` default (``l2`` / ``lbfgs``)
-        is what single runs use — the ``l1`` choice only appears in the
-        hyperparameter search space, paired with a compatible solver.
+        Regularisation norm. ``'l1'`` / ``'elasticnet'`` are unsupported by the
+        default ``lbfgs`` solver, so when one is requested with an incompatible
+        solver the wrapper transparently switches to ``'saga'`` (which supports
+        every penalty). This lets the hyperparameter search sweep ``penalty`` over
+        ``[l1, l2]`` (per ``models.yaml``) without also having to co-vary the solver.
     C : float, default 1.0
         Inverse regularisation strength (smaller ⇒ stronger regularisation).
     class_weight : str, dict or None, default ``"balanced"``
@@ -201,14 +202,32 @@ class LogisticRegressionWrapper(_DensePipelineClassifier):
         self._solver = solver
         self._random_state = random_state
 
+    # Solvers that cannot fit an L1 / elastic-net penalty; a request for those
+    # penalties with one of these solvers is auto-upgraded to ``saga``.
+    _L2_ONLY_SOLVERS = frozenset({"lbfgs", "newton-cg", "newton-cholesky", "sag"})
+
     def _build_estimator(self) -> LogisticRegression:
-        """Return an unfitted :class:`~sklearn.linear_model.LogisticRegression`."""
+        """Return an unfitted :class:`~sklearn.linear_model.LogisticRegression`.
+
+        Auto-selects ``saga`` when the requested ``penalty`` (``l1`` / ``elasticnet``)
+        is incompatible with the configured solver, so the search can sweep
+        ``penalty`` freely.
+        """
+        solver = self._solver
+        if self._penalty in ("l1", "elasticnet") and solver in self._L2_ONLY_SOLVERS:
+            logger.debug(
+                "LogisticRegressionWrapper: penalty={!r} needs an L1-capable solver; "
+                "switching {!r} -> 'saga'.",
+                self._penalty,
+                solver,
+            )
+            solver = "saga"
         return LogisticRegression(
             penalty=self._penalty,
             C=self._C,
             class_weight=self._class_weight,
             max_iter=self._max_iter,
-            solver=self._solver,
+            solver=solver,
             random_state=self._random_state,
         )
 

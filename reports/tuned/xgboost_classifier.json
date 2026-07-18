@@ -1,0 +1,86 @@
+{
+  "model_name": "xgboost_classifier",
+  "task": "classification",
+  "int_labels": false,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.49189189189189186,
+  "best_params": {
+    "n_estimators": 315,
+    "max_depth": 8,
+    "learning_rate": 0.014695485136069414,
+    "subsample": 0.7668696966901489,
+    "colsample_bytree": 0.5072874812427098,
+    "reg_alpha": 3.924054590043845,
+    "reg_lambda": 3.188410793048408
+  },
+  "best_model_cfg": {
+    "module": "rba.models.xgb",
+    "class": "XGBClassifierWrapper",
+    "task": "classification",
+    "default": {
+      "n_estimators": 315,
+      "max_depth": 8,
+      "learning_rate": 0.014695485136069414,
+      "subsample": 0.7668696966901489,
+      "colsample_bytree": 0.5072874812427098,
+      "tree_method": "hist",
+      "reg_alpha": 3.924054590043845,
+      "reg_lambda": 3.188410793048408
+    },
+    "search_space": {
+      "n_estimators": {
+        "type": "int",
+        "low": 100,
+        "high": 1500
+      },
+      "max_depth": {
+        "type": "int",
+        "low": 2,
+        "high": 10
+      },
+      "learning_rate": {
+        "type": "loguniform",
+        "low": 0.005,
+        "high": 0.3
+      },
+      "subsample": {
+        "type": "uniform",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "colsample_bytree": {
+        "type": "uniform",
+        "low": 0.5,
+        "high": 1.0
+      },
+      "reg_alpha": {
+        "type": "loguniform",
+        "low": 0.0001,
+        "high": 10
+      },
+      "reg_lambda": {
+        "type": "loguniform",
+        "low": 0.0001,
+        "high": 10
+      }
+    },
+    "name": "xgboost_classifier"
+  },
+  "n_trials": 3,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    3.2211471677819143,
+    1.0973212342594911,
+    0.2829147884409096
+  ],
+  "classes": [
+    "cut",
+    "hike",
+    "hold"
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T02:42:09+00:00",
+  "git_commit": null,
+  "notes": ""
+}

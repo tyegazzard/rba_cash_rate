@@ -20,12 +20,14 @@ classifiers = [
 ]
 dependencies = [
     "beautifulsoup4>=4.14.3",
+    "imbalanced-learn>=0.14.2",
     "lightgbm>=4.6.0",
     "loguru",
     "mlflow>=1.27.0",
     "mord>=0.7",
     "numpy>=2.4.4",
     "openpyxl>=3.1.5",
+    "optuna>=4.9.0",
     "pandas>=3.0.2",
     "pip",
     "plotly>=6.7.0",
@@ -81,6 +83,8 @@ no_implicit_optional = true
 
 [[tool.mypy.overrides]]
 module = [
+    "imblearn.*",
+    "joblib.*",
     "lightgbm.*",
     "mlflow.*",
     "mord.*",

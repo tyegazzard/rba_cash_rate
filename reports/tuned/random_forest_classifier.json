@@ -1,0 +1,59 @@
+{
+  "model_name": "random_forest_classifier",
+  "task": "classification",
+  "int_labels": false,
+  "tuned": true,
+  "search_metric": "balanced_accuracy",
+  "best_value": 0.5594594594594595,
+  "best_params": {
+    "n_estimators": 238,
+    "max_depth": 23,
+    "min_samples_leaf": 6
+  },
+  "best_model_cfg": {
+    "module": "rba.models.sklearn_wrappers",
+    "class": "RandomForestClassifierWrapper",
+    "task": "classification",
+    "default": {
+      "n_estimators": 238,
+      "max_depth": 23,
+      "min_samples_leaf": 6,
+      "class_weight": "balanced",
+      "n_jobs": -1
+    },
+    "search_space": {
+      "n_estimators": {
+        "type": "int",
+        "low": 100,
+        "high": 1000
+      },
+      "max_depth": {
+        "type": "int",
+        "low": 3,
+        "high": 30
+      },
+      "min_samples_leaf": {
+        "type": "int",
+        "low": 1,
+        "high": 20
+      }
+    },
+    "name": "random_forest_classifier"
+  },
+  "n_trials": 12,
+  "threshold_metric": "balanced_accuracy",
+  "class_weights": [
+    4.978614951191938,
+    0.18179015916099275,
+    1.1048952108120602
+  ],
+  "classes": [
+    "cut",
+    "hike",
+    "hold"
+  ],
+  "baseline_dev_score": null,
+  "timestamp_utc": "2026-07-17T02:34:59+00:00",
+  "git_commit": null,
+  "notes": ""
+}
