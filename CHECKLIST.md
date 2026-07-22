@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 130 / 157 (83%)
+Progress: 137 / 157 (87%)
 
 ## 1. Problem definition
 
@@ -225,13 +225,13 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 ### Streamlit dashboard
 
-- [ ] Design dashboard layout (next-meeting prediction, history, feature importances)
-- [ ] Implement streamlit_app/main.py with model loading from MLflow
-- [ ] Show probability distribution across hike/hold/cut
-- [ ] Show comparison vs market-implied probabilities
-- [ ] Show top driving features for current prediction
-- [ ] Add historical accuracy panel
-- [ ] Test locally: uv run streamlit run streamlit_app/main.py
+- [x] Design dashboard layout (next-meeting prediction, history, feature importances)
+- [x] Implement streamlit_app/main.py with model loading from ~~MLflow~~ local `best_model/` (MLflow upstream-blocked)
+- [x] Show probability distribution across hike/hold/cut
+- [x] Show comparison vs market-implied probabilities
+- [x] Show top driving features for current prediction
+- [x] Add historical accuracy panel
+- [x] Test locally: uv run streamlit run streamlit_app/main.py
 
 ### Before-meeting predictions
 
