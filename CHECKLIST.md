@@ -1,6 +1,6 @@
 # RBA cash rate prediction — project checklist
 
-Progress: 128 / 157 (82%)
+Progress: 130 / 157 (83%)
 
 ## 1. Problem definition
 
@@ -236,8 +236,8 @@ Single generated source of truth: what data we have, where it lives, when it was
 ### Before-meeting predictions
 
 - [ ] Schedule data refresh script (cron or GitHub Actions) before each meeting
-- [ ] Implement predict-next-meeting CLI command
-- [ ] Log every pre-meeting prediction with timestamp
+- [x] Implement predict-next-meeting CLI command
+- [x] Log every pre-meeting prediction with timestamp
 - [ ] After each meeting: log actual outcome and update accuracy tracker
 
 ### Hosting & polish

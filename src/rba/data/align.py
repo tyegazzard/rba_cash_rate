@@ -79,7 +79,7 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -203,6 +203,102 @@ def _parse_signed_float(raw: object) -> float:
     except ValueError:
         logger.warning("Unparseable F11 numeric cell {!r}; mapping to NaN.", raw)
         return np.nan
+
+
+def append_future_meeting(
+    meeting_frame: pd.DataFrame,
+    meeting_date: pd.Timestamp | date | str,
+) -> pd.DataFrame:
+    """Append one not-yet-decided future Board meeting to the meeting frame.
+
+    The meeting frame from :func:`build_meeting_frame` ends at the last *decided*
+    meeting. To predict the next meeting we need a row for it in the frame so the
+    point-in-time as-of join (:func:`build_master`) and every backward-looking
+    feature builder populate its features from data known *before* that date. This
+    appends exactly that row — with the outcome columns left NaN (undecided):
+
+    - ``meeting_date`` — the scheduled announcement date (the value predicted at).
+    - ``effective_date`` — ``NaT`` (the rate's effective date is unknown until the
+      decision; no feature reads it — it is metadata excluded from ``X``).
+    - ``rate_change_bps`` / ``new_rate_pct`` — ``NaN`` (undecided; these are the
+      outcome columns, excluded from the feature matrix, so the NaN never reaches
+      a model — :func:`rba.data.targets.build_target` would drop the row, which is
+      why the serving path selects features directly rather than via ``build_xy``).
+    - ``prior_rate_pct`` — the last decided ``new_rate_pct`` (the standing rate
+      going *into* the meeting; a legitimate, known feature).
+    - ``gap_days_since_last_meeting`` — calendar days since the last meeting.
+    - ``statement_url`` / ``minutes_url`` — ``NA`` (not yet published).
+
+    The appended row is chronologically last, so every ``rolling`` / ``lags`` /
+    ``changes`` / ``target_lags`` builder reads only earlier (already-known) rows
+    for it, and the as-of join's strict ``publication_date < meeting_date`` rule
+    means it can only pick up legitimately-known observations — no leakage.
+
+    Parameters
+    ----------
+    meeting_frame
+        The historical meeting frame (:func:`build_meeting_frame` /
+        :func:`load_meeting_frame` output) carrying :data:`_MEETING_COLUMNS`.
+    meeting_date
+        The scheduled announcement date of the upcoming meeting. Must be strictly
+        after the last meeting already in ``meeting_frame``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A copy of ``meeting_frame`` with the one future row appended, sorted
+        ascending by ``meeting_date`` and re-indexed.
+
+    Raises
+    ------
+    ValueError
+        If ``meeting_date`` is on or before the last meeting in ``meeting_frame``
+        (a past/duplicate meeting is not a *future* prediction — and building
+        features for a past meeting on current-vintage cache would be vintage
+        bias, handled explicitly by the caller rather than silently here).
+
+    Shapes
+    ------
+    meeting_frame: (n, 8) -> (n + 1, 8).
+    """
+    future = pd.Timestamp(meeting_date)
+    frame = meeting_frame.copy()
+    frame["meeting_date"] = pd.to_datetime(frame["meeting_date"])
+    last = frame["meeting_date"].max()
+    if pd.isna(last) or future <= last:
+        raise ValueError(
+            f"append_future_meeting: meeting_date {future.date()} must be strictly after the "
+            f"last meeting ({None if pd.isna(last) else last.date()}). A past or duplicate "
+            "meeting is not a future prediction."
+        )
+    last_row = frame.loc[frame["meeting_date"].idxmax()]
+    new_row = {
+        "meeting_date": future,
+        "effective_date": pd.NaT,
+        "rate_change_bps": np.nan,
+        "new_rate_pct": np.nan,
+        "prior_rate_pct": last_row["new_rate_pct"],
+        "gap_days_since_last_meeting": (future - last).days,
+        "statement_url": pd.NA,
+        "minutes_url": pd.NA,
+    }
+    appended = pd.concat(
+        [frame, pd.DataFrame([new_row], columns=list(_MEETING_COLUMNS))],
+        ignore_index=True,
+    )
+    # Preserve the nullable-int dtype build_meeting_frame gives this column.
+    appended["gap_days_since_last_meeting"] = appended["gap_days_since_last_meeting"].astype(
+        "Int64"
+    )
+    appended = appended.sort_values("meeting_date").reset_index(drop=True)
+    logger.info(
+        "append_future_meeting: added {} (prior_rate={}, gap={}d); frame now {} meetings.",
+        future.date(),
+        new_row["prior_rate_pct"],
+        new_row["gap_days_since_last_meeting"],
+        len(appended),
+    )
+    return appended
 
 
 # -----------------------------------------------------------------------------
