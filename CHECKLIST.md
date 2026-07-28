@@ -235,16 +235,14 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 ### Before-meeting predictions
 
-- [ ] Schedule data refresh script (cron or GitHub Actions) before each meeting
 - [x] Implement predict-next-meeting CLI command
 - [x] Log every pre-meeting prediction with timestamp
-- [ ] After each meeting: log actual outcome and update accuracy tracker
 
 ### Hosting & polish
 
-- [ ] Deploy dashboard to Streamlit Community Cloud (free)
-- [ ] Add custom domain (optional)
-- [ ] Write final README with screenshots, methodology, results, limitations
-- [ ] Tag v1.0.0 release on GitHub
-- [ ] Optional: write blog-style writeup (Distill format)
-- [ ] Optional: submit to Tomasz Woźniak's RBA forecast survey for credible benchmark
+- [~] Deploy dashboard to Streamlit Community Cloud (free)
+- [~] Add custom domain (optional)
+- [~] Write final README with screenshots, methodology, results, limitations
+- [~] Tag v1.0.0 release on GitHub
+- [~] Optional: write blog-style writeup (Distill format)
+- [~] Optional: submit to Tomasz Woźniak's RBA forecast survey for credible benchmark
