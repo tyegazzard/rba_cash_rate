@@ -91,11 +91,11 @@ Progress: 137 / 157 (87%)
 
 ### Text data
 
-- [x] Implement RBA media release scraper (post-decision statements)
-- [x] Implement RBA minutes scraper (released 2 weeks after meeting)
-- [x] Implement RBA Statement on Monetary Policy scraper
-- [x] Implement Governor speech scraper
-- [x] Store full text + metadata (date, type, governor, URL)
+- [~] Implement RBA media release scraper (post-decision statements)
+- [~] Implement RBA minutes scraper (released 2 weeks after meeting)
+- [~] Implement RBA Statement on Monetary Policy scraper
+- [~] Implement Governor speech scraper
+- [~] Store full text + metadata (date, type, governor, URL)
 
 ### Source orchestration
 
@@ -242,7 +242,7 @@ Single generated source of truth: what data we have, where it lives, when it was
 
 - [~] Deploy dashboard to Streamlit Community Cloud (free)
 - [~] Add custom domain (optional)
-- [~] Write final README with screenshots, methodology, results, limitations
+- [x] Write final README with screenshots, methodology, results, limitations
 - [~] Tag v1.0.0 release on GitHub
 - [~] Optional: write blog-style writeup (Distill format)
 - [~] Optional: submit to Tomasz Woźniak's RBA forecast survey for credible benchmark

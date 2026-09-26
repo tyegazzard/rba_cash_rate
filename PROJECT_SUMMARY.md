@@ -13,18 +13,26 @@ is the announcement date (2:30pm decision), so `meeting_date ≡ publication_dat
 caps pandas<3) → local artifacts under `reports/` are the durable record.
 
 ## Data layer (`src/rba/data/sources/`, `refresh.py`, `inventory.py`)
-- ~23 sources: RBA F11 (target/decisions), ABS macro (CPI, labour force, WPI, GDP,
-  building approvals, dwellings), RBA aggregates (D credit, E household ratios, I2
-  commodities), market (ASX 30-day IB futures, AGB yields, AUD/FX, ASX200, BBSW),
-  global via FRED (US CPI, fed funds, 10y, DXY, VIX, iron ore/copper/oil), text (media
-  releases, minutes, SoMP, speeches).
+- **19 numeric sources (120 series) — these are what the model runs on:** RBA F11
+  (target/decisions), ABS macro (CPI, labour force, WPI, GDP, building approvals,
+  dwellings), RBA aggregates (D credit, E household ratios, I2 commodities), market
+  (ASX 30-day IB futures, AGB yields, AUD/FX, ASX200, BBSW), global via FRED (US CPI,
+  fed funds, 10y, DXY, VIX, iron ore/copper/oil).
+- **4 text scrapers — built, but not part of the v1 model** (media releases, minutes,
+  SoMP, speeches). Each has a full parser + cross-check; see Feature engineering for
+  why none reach `X`. Current crawl coverage: minutes 197/197 and SoMP 82/82 complete;
+  media releases 34/230 and speeches 22/1,340 — both aborted mid-crawl on unhandled
+  `datePublished` layout variants (multi-day date ranges; a few pages with the element
+  absent) and need a parser fix plus a re-run. None are materialised to
+  `data/external/*.parquet` by `refresh.py`; that write only happens when a text module
+  is run as `__main__`.
 - **How:** each source `fetch()` writes an immutable raw snapshot + hashed
   `_metadata.json` (provenance). `refresh.py` orchestrates all sources with per-source
   error isolation. `inventory.py` catalogs them → generates `DATA.md` +
   `inventory.parquet`. Each series records observation_date AND publication_date.
 
 ## Preprocessing / point-in-time alignment (`src/rba/data/align.py`)
-- **How:** as-of join of every source onto the meeting frame with a **strict
+- **How:** as-of join of every numeric source onto the meeting frame with a **strict
   `publication_date < meeting_date`** rule (no same-day leakage). Emits per-series
   `<sid>`, `<sid>_age_days` (staleness), `<sid>_is_missing`. Adds regime dummies
   (governor eras, GFC, COVID, forward guidance, 2024 cadence change) and
@@ -32,11 +40,16 @@ caps pandas<3) → local artifacts under `reports/` are the durable record.
   guarded by synthetic-future-injection tests.
 
 ## Feature engineering (`src/rba/features/`)
-- Lags, rolling (mean/std/z-score/min/max/EWMA, past-only), changes (Δ/%Δ/YoY),
-  target-lags, Loughran-McDonald text lexicon scoring. (Embeddings / custom
-  hawkish-dovish dict deferred.)
-- **How:** YAML-driven builders → `features.parquet` (681 model columns) + a
-  feature-version hash. `feature_columns()` is the single leakage-free X definition
+- Builders: lags, rolling (mean/std/z-score/min/max/EWMA, past-only), changes (Δ/%Δ/YoY),
+  target-lags. The point-in-time level columns and `regime_*` dummies come from
+  `align.py` and pass through untouched.
+- **No text features in v1.** The Loughran-McDonald lexicon scorer is implemented and
+  unit-tested (`features/text/lexicon.py`), but it produces a standalone artifact only:
+  `text` sits in `build.py`'s `DEFERRED_GROUPS`, so point-in-time alignment of text onto
+  the meeting frame was never built and no `lm_*` column exists in `features.parquet`.
+  (Embeddings / custom hawkish-dovish dict also deferred.)
+- **How:** YAML-driven builders → `features.parquet` (681 model columns, all numeric)
+  + a feature-version hash. `feature_columns()` is the single leakage-free X definition
   (excludes outcome columns).
 
 ## Baselines + models (`src/rba/models/`, `models.yaml`)
@@ -86,5 +99,10 @@ caps pandas<3) → local artifacts under `reports/` are the durable record.
 ## Known limitations
 - Market baseline beats the models (the honest finding). Small test window (N≈39).
   Vintage bias (current-vintage macro, not the real-time values the Board saw).
-  Taylor-rule inputs are proxies. Text embeddings deferred. MLflow upstream-blocked.
+  Taylor-rule inputs are proxies. **No text signal in the model** — scrapers and the LM
+  scorer exist, but text→meeting-frame alignment is deferred and two of the four crawls
+  are incomplete, so the models see numeric features only. MLflow upstream-blocked.
   Meeting schedule needs manual 2027+ dates appended when the RBA publishes them.
+  `DATA.md` is stale (predates the last crawl) — regenerate with
+  `python -m rba.data.inventory`; note it reports document sources from the
+  unmaterialised `data/external/*.parquet`, so the four text rows read blank.

@@ -97,10 +97,14 @@ def load_best_model_meta() -> dict[str, Any]:
 # Figure builders (pure: data -> go.Figure).
 # -----------------------------------------------------------------------------
 def _base_layout(fig: go.Figure, *, height: int = 300, showlegend: bool = False) -> go.Figure:
-    """Apply the shared chrome: transparent surface, recessive grid, system font."""
+    """Apply the shared chrome: transparent surface, recessive grid, system font.
+
+    Margins are minimal and ``automargin`` is enabled on both axes so plotly grows
+    them to fit tick labels (category names, feature names) instead of clipping.
+    """
     fig.update_layout(
         height=height,
-        margin=dict(l=8, r=16, t=8, b=8),
+        margin=dict(l=8, r=48, t=8, b=8),  # r fits outside bar labels; l/b grow via automargin
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=FONT, color=INK, size=13),
@@ -108,8 +112,10 @@ def _base_layout(fig: go.Figure, *, height: int = 300, showlegend: bool = False)
         legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, font=dict(size=12)),
         bargap=0.28,
     )
-    fig.update_xaxes(showgrid=True, gridcolor=GRID, zeroline=False, linecolor=GRID)
-    fig.update_yaxes(showgrid=False, zeroline=False, linecolor=GRID)
+    fig.update_xaxes(
+        showgrid=True, gridcolor=GRID, zeroline=False, linecolor=GRID, automargin=True
+    )
+    fig.update_yaxes(showgrid=False, zeroline=False, linecolor=GRID, automargin=True)
     return fig
 
 

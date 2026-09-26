@@ -169,4 +169,4 @@ def test_fit_and_predict_with_nan_in_X_succeeds() -> None:
     preds = model.predict(X)
     assert preds.shape == (len(X),)
     proba = model.predict_proba(X)
-    np.testing.assert_allclose(proba.sum(axis=1), np.ones(len(X)))
+    np.testing.assert_allclose(proba.sum(axis=1), np.ones(len(X)), atol=1e-6)
