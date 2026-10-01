@@ -22,12 +22,15 @@ frozen (from the dev tuning campaign) — only the training *data* expands.
 The two data-dependent baselines are handled deliberately rather than forced
 through the shared ``X``:
 
-- :func:`attach_market_implied` derives ``asx_30d_implied_rate`` per meeting from
-  the raw ASX 30-day IB-futures curve (never aligned into ``features.parquet``)
-  and joins it on ``meeting_date``. :func:`market_implied_on_test` then scores the
+- :func:`attach_market_implied` derives ``asx_30d_implied_rate`` — the implied
+  post-meeting rate — per meeting from the raw ASX 30-day IB-futures curve (never
+  aligned into ``features.parquet``) and joins it on ``meeting_date``. The contract
+  read depends on where the meeting falls in its month (see
+  :func:`~rba.data.sources.asx_ib_futures.derive_meeting_implied`).
+  :func:`market_implied_on_test` then scores the
   :class:`~rba.models.baselines.MarketImplied` baseline on the covered test
-  meetings — futures coverage begins 2022-04-21, so ~1 test meeting with no quote
-  yields NaN and drops from the paired comparison.
+  meetings — futures coverage begins 2022-04-21, and any test meeting with no
+  quote yields NaN and drops from the paired comparison.
 - :func:`attach_taylor_inputs` builds the two Taylor-rule proxy regressors
   (``cpi_headline_yoy`` from a trimmed-mean-CPI year-over-year, ``output_gap`` from
   a negative unemployment gap) that the feature frame does not carry, so the
@@ -65,6 +68,7 @@ __all__ = [
 
 _MEETING_KEY = "meeting_date"
 _IMPLIED_COL = "asx_30d_implied_rate"
+_PRIOR_RATE_COL = "prior_rate_pct"
 
 
 @dataclass
@@ -98,18 +102,22 @@ def attach_market_implied(
 ) -> pd.DataFrame:
     """Return ``frame`` with an added ``asx_30d_implied_rate`` column.
 
-    Derives the market-implied cash rate per meeting from the cached raw ASX
-    30-day IB-futures curve (:func:`rba.data.sources.asx_ib_futures.fetch` with
-    ``force_download=False``) via
-    :func:`~rba.data.sources.asx_ib_futures.derive_meeting_implied`, and joins it
-    on ``meeting_date``. Meetings before futures coverage (2022-04-21) — i.e. the
-    whole dev window — get NaN, which is exactly what the
+    Derives the market-implied **post-meeting** cash rate per meeting from the
+    cached raw ASX 30-day IB-futures curve
+    (:func:`rba.data.sources.asx_ib_futures.fetch` with ``force_download=False``)
+    via :func:`~rba.data.sources.asx_ib_futures.derive_meeting_implied`, and joins
+    it on ``meeting_date``. That helper picks the contract by where the meeting
+    falls in its month: the meeting-month contract, day-weight unwound with
+    ``prior_rate_pct``, for a first-half meeting, and the following month's
+    contract for a second-half one. Meetings before futures coverage (2022-04-21)
+    — i.e. the whole dev window — get NaN, which is exactly what the
     :class:`~rba.models.baselines.MarketImplied` coverage guard expects.
 
     Parameters
     ----------
     frame
-        A meeting-indexed feature frame carrying ``meeting_date``.
+        A meeting-indexed feature frame carrying ``meeting_date`` and
+        ``prior_rate_pct`` (the cash rate target going into each meeting).
     lookback_business_days
         Trading days strictly before the meeting to read the curve from (default
         1 — the T-1 close, publicly known before the meeting; no leakage).
@@ -121,16 +129,31 @@ def attach_market_implied(
         raw IB snapshot is unreadable, logs a warning and adds an all-NaN column
         (so the market baseline degrades to "no coverage" rather than crashing).
 
+    Raises
+    ------
+    ValueError
+        If ``frame`` has no ``prior_rate_pct`` column.
+
     Shapes
     ------
     frame: (n_meetings, c) -> (n_meetings, c + 1).
     """
     out = frame.copy()
+    if _PRIOR_RATE_COL not in out.columns:
+        raise ValueError(
+            f"attach_market_implied: frame must carry '{_PRIOR_RATE_COL}'; the rate going "
+            "into each meeting is needed to read the futures curve."
+        )
     try:
         from rba.data.sources import asx_ib_futures as ib
 
         long_df = ib.fetch(force_download=False)
-        meetings = pd.DataFrame({"observation_date": pd.to_datetime(out[_MEETING_KEY])})
+        meetings = pd.DataFrame(
+            {
+                "observation_date": pd.to_datetime(out[_MEETING_KEY]).to_numpy(),
+                _PRIOR_RATE_COL: pd.to_numeric(out[_PRIOR_RATE_COL], errors="coerce").to_numpy(),
+            }
+        )
         implied = ib.derive_meeting_implied(
             long_df, meetings, lookback_business_days=lookback_business_days
         )

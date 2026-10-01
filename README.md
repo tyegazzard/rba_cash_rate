@@ -11,7 +11,7 @@ The pipeline ingests 120 economic and market series, the RBA's decision history 
 
 ![RBA cash-rate dashboard](docs/dashboard.png)
 
-> **Headline result (an honest null):** the market-implied baseline derived from ASX futures is the single best predictor on the held-out window, with a balanced accuracy of 0.656. The best learned model, a tuned LightGBM, reaches 0.624, and **no model beats the market**. On a liquid, rate-tracked market the futures curve already impounds the macro signal the models are trying to learn. See [Results](#results).
+> **Headline result (an honest null):** the market-implied baseline derived from ASX futures is the single best predictor on the held-out window, with a balanced accuracy of 0.921. The best learned model, a tuned LightGBM, reaches 0.624, and **no model beats the market**. On a liquid, rate-tracked market the futures curve already impounds the macro signal the models are trying to learn. See [Results](#results).
 
 ---
 
@@ -179,7 +179,7 @@ Every model implements one `Model` protocol (`fit` / `predict` / `predict_proba`
 | `majority_class` | Always `hold`; probabilities equal the empirical class prior |
 | `persistence` | Repeat the previous decision |
 | `taylor_rule` | Prescribed rate level `î = α + φ_π·π + φ_y·gap`, either with Taylor's literature coefficients (1.5, 0.5) and an intercept built from a 3.0 % neutral rate and 2.5 % inflation target, or OLS-fitted on the training window (the reported run uses the OLS-fitted mode, refit at each walk-forward step). Scored as a level regression; a cut/hold/hike call is derived from the prescribed level minus the standing rate with a 12.5 bp dead-band |
-| `market_implied` | ASX 30-day futures implied rate for the meeting-month contract at T-1; `Δ = implied − current rate` mapped to `P(hike) = clip(Δ / 25 bp, 0, 1)`, symmetrically for cuts, remainder to hold |
+| `market_implied` | ASX 30-day futures implied post-meeting rate at T-1: the meeting-month contract with its monthly average unwound when the meeting falls in the first half of its month, otherwise the following month's contract; `Δ = implied − current rate` mapped to `P(hike) = clip(Δ / 25 bp, 0, 1)`, symmetrically for cuts, remainder to hold |
 
 **Learned models:** logistic regression (L1/L2), random forest, XGBoost, LightGBM, SVM (linear/RBF), ordinal logistic (`mord`) and an MLP, plus a soft-voting ensemble and a stacking ensemble whose meta-learner trains on out-of-fold base probabilities. Tree models receive NaN natively; the dense models (logistic regression, SVM, MLP, ordinal logistic) fit a per-fold forward-fill imputer and scaler inside their own pipeline. Five of the seven learners counter the hold prior with balanced class weights by default (logistic regression, random forest, SVM and LightGBM via `class_weight='balanced'`, XGBoost via equivalent per-sample weights); the MLP and the ordinal model train unweighted. Two further meta-estimators are registered and unit-tested for experiments, per-fold top-k feature selection and per-fold SMOTE, but they are not part of the reported comparison. An xRFM wrapper exists as a stub only.
 
@@ -194,28 +194,28 @@ Every model implements one `Model` protocol (`fit` / `predict` / `predict_proba`
 
 ## Results
 
-Full write-up: [reports/results.md](reports/results.md), generated 2026-07-18. Ranked by argmax balanced accuracy on the 39-meeting held-out window. The dev-tuned per-class thresholds are scored separately as `bal_acc_tuned` in `reports/holdout_metrics.csv`: they lift XGBoost to 0.625 but lower LightGBM to 0.611, so on N = 39 they are reported but not ranked on.
+Full write-up: [reports/results.md](reports/results.md), generated 2026-09-29. Ranked by argmax balanced accuracy on the 39-meeting held-out window. The dev-tuned per-class thresholds are scored separately as `bal_acc_tuned` in `reports/holdout_metrics.csv`: they lift XGBoost to 0.625 but lower LightGBM to 0.611, so on N = 39 they are reported but not ranked on.
 
 | Model | Kind | Accuracy | Balanced acc. | Macro-F1 | Log-loss | Lift vs market |
 |---|---|---|---|---|---|---|
-| **market_implied** | baseline | 0.789 | **0.656** | 0.678 | — | — |
-| lightgbm_classifier | model | 0.744 | 0.624 | 0.669 | 1.280 | −0.053 |
-| ordinal_logistic | model | 0.718 | 0.607 | 0.612 | 3.153 | −0.053 |
-| svm_classifier | model | 0.692 | 0.590 | 0.594 | 0.736 | −0.079 |
-| logistic_regression | model | 0.641 | 0.557 | 0.557 | 1.779 | −0.132 |
-| voting_ensemble | ensemble | 0.641 | 0.553 | 0.571 | 0.972 | −0.132 |
-| xgboost_classifier | model | 0.615 | 0.544 | 0.538 | 0.856 | −0.184 |
-| stacking_ensemble | ensemble | 0.564 | 0.515 | 0.475 | 1.787 | −0.211 |
-| mlp_classifier | model | 0.564 | 0.486 | 0.528 | 2.505 | −0.237 |
-| persistence | baseline | 0.641 | 0.467 | 0.467 | 12.939 | −0.132 |
-| random_forest_classifier | model | 0.615 | 0.446 | 0.427 | 0.863 | −0.184 |
-| majority_class | baseline | 0.513 | 0.333 | 0.226 | 1.240 | −0.289 |
+| **market_implied** | baseline | 0.897 | **0.921** | 0.886 | — | — |
+| lightgbm_classifier | model | 0.744 | 0.624 | 0.669 | 1.280 | −0.154 |
+| ordinal_logistic | model | 0.718 | 0.607 | 0.612 | 3.153 | −0.179 |
+| svm_classifier | model | 0.692 | 0.590 | 0.594 | 0.736 | −0.205 |
+| logistic_regression | model | 0.641 | 0.557 | 0.557 | 1.779 | −0.256 |
+| voting_ensemble | ensemble | 0.641 | 0.553 | 0.571 | 0.972 | −0.256 |
+| xgboost_classifier | model | 0.615 | 0.544 | 0.538 | 0.856 | −0.282 |
+| stacking_ensemble | ensemble | 0.564 | 0.515 | 0.475 | 1.787 | −0.333 |
+| mlp_classifier | model | 0.564 | 0.486 | 0.528 | 2.505 | −0.333 |
+| persistence | baseline | 0.641 | 0.467 | 0.467 | 12.939 | −0.256 |
+| random_forest_classifier | model | 0.615 | 0.446 | 0.427 | 0.863 | −0.282 |
+| majority_class | baseline | 0.513 | 0.333 | 0.226 | 1.240 | −0.385 |
 
-*The market baseline covers 38 of the 39 meetings: the 30 September 2025 meeting has no quote for its meeting-month contract at T-1 in the scraper history (coverage otherwise runs from 21 April 2022). Lift is model accuracy minus market accuracy on those 38 meetings.*
+*The market baseline covers all 39 meetings (futures coverage runs from 21 April 2022). Lift is model accuracy minus market accuracy on the same meetings. The market figures were restated on 2026-09-29 after the contract-selection rule was corrected: the earlier rule read the meeting-month contract for every meeting, which hid decisions made late in a month, and scored 0.656 balanced accuracy on 38 meetings. Model scores are unchanged.*
 
 **What the numbers say**
 
-- **The market wins.** Every learned model has negative lift against the futures-implied call. On the 8 meetings where the market was wrong, LightGBM was right 75 % of the time, but it gives that back on the 30 meetings the market got right.
+- **The market wins.** Every learned model has negative lift against the futures-implied call. On the 4 meetings where the market was wrong, LightGBM was right 75 % of the time, against 74 % on the 35 meetings the market got right.
 - **LightGBM is the best learned model** (tuned to 120 trees, 119 leaves, learning rate 0.20, balanced class weights). Its held-out confusion matrix (rows = actual, columns = predicted):
 
   | | cut | hike | hold |
@@ -238,7 +238,7 @@ With N = 39, differences of a few points of balanced accuracy are within samplin
 
 1. `rba.data.meeting_schedule` supplies the hand-verified forward announcement dates as a checked-in tuple (`python -m rba.data.meeting_schedule` reconciles its past portion against the cached F11 history).
 2. `align.append_future_meeting()` appends an undecided row (outcome columns NaN, prior rate = last decision) *before* the point-in-time join, so the row is populated only from data published before that date. The master and feature frames are rebuilt in memory from the raw cache; the processed parquet files are not needed.
-3. The row is reindexed to the model's `feature_names_`, the LightGBM artifact in `reports/best_model/` predicts, and the market-implied baseline is scored alongside when the meeting-month futures contract is quoted.
+3. The row is reindexed to the model's `feature_names_`, the LightGBM artifact in `reports/best_model/` predicts, and the market-implied baseline is scored alongside when the futures contract that prices the meeting is quoted.
 4. The result (class probabilities, market comparison, top global feature importances, a data-vintage and staleness summary, git commit, UTC timestamp) is returned as a `PredictionResult`; the CLI prints a compact summary (or the full object with `--json`) and appends it as one JSON line to `reports/predictions/predictions.jsonl` unless `--no-log` is passed.
 
 ```
@@ -266,7 +266,7 @@ options:
 
 The **Streamlit dashboard** (`uv run streamlit run streamlit_app/main.py`) wraps the same function: headline call and confidence, cut/hold/hike probabilities, model-versus-market comparison, top drivers (global feature importances, not a per-meeting attribution), and a held-out track-record panel (leaderboard plus the best model's confusion matrix) that shows the market baseline topping the table. The prediction takes a few seconds on cached data and is memoised with `st.cache_data`; a sidebar button triggers a live refresh. Dashboard runs do not write to the prediction log, and the app runs locally only; nothing is deployed or scheduled.
 
-Predictions run on cached raw snapshots by default. The market comparison needs a quote for the meeting-month contract within the seven business days before the meeting, so refresh (CLI `--refresh` or the dashboard button) in the week before a meeting to see it.
+Predictions run on cached raw snapshots by default. The market comparison needs a quote for the contract that prices the meeting (its own month's, or the following month's when the meeting falls in the second half of the month) within the seven business days before the meeting, so refresh (CLI `--refresh` or the dashboard button) in the week before a meeting to see it.
 
 ## Repository structure
 

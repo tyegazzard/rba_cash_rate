@@ -272,9 +272,13 @@ def test_build_next_meeting_features_integration() -> None:
     if not (pn._BEST_DIR / "best_model.json").exists():
         pytest.skip("no persisted best model")
 
+    from rba.data.align import load_meeting_frame
     from rba.data.meeting_schedule import next_meeting_date
 
-    meeting = next_meeting_date(date(2026, 7, 1))
+    # Derive the target from the cached snapshot rather than a fixed date, so a
+    # raw-data refresh that decides the "next" meeting can't make it a past one.
+    last = pd.to_datetime(load_meeting_frame(RAW_DATA_DIR)["meeting_date"]).max()
+    meeting = next_meeting_date(last.date())
     nmf = pn.build_next_meeting_features(meeting)
     best = pn.load_best_model()
     x = nmf.x.reindex(columns=list(best.model.feature_names_))

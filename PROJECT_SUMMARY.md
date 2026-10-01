@@ -72,7 +72,7 @@ caps pandas<3) → local artifacts under `reports/` are the durable record.
   `reports/best_model/*.joblib`.
 
 ## Key result
-- **The market-implied baseline (ASX futures) wins** — balanced accuracy ≈0.656; best
+- **The market-implied baseline (ASX futures) wins** — balanced accuracy ≈0.921; best
   learned model is LightGBM ≈0.624; no model beats the market. Honest null result: on
   a rate-tracked market the futures curve already prices the macro signal the models
   try to learn. Balanced accuracy is the headline metric (the test window is only

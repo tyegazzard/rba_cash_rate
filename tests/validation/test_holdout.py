@@ -127,3 +127,36 @@ def test_attach_market_implied_adds_float_column() -> None:
     assert "asx_30d_implied_rate" in out.columns
     assert out["asx_30d_implied_rate"].dtype == float
     assert len(out) == len(frame)
+
+
+def test_attach_market_implied_applies_the_contract_rule(monkeypatch) -> None:
+    """The prior rate reaches the derivation, and each meeting reads the contract
+    that prices it: February 2024 is unwound from its own month's contract, the
+    late-September 2026 meeting reads October's."""
+    from rba.data.sources import asx_ib_futures as ib
+
+    hike_priced = (6 * 4.35 + 23 * 4.60) / 29  # 25 bp hike, day-weighted into Feb
+    curve = pd.DataFrame(
+        {
+            "observation_date": pd.to_datetime(
+                ["2024-02-05", "2024-02-05", "2026-09-28", "2026-09-28"]
+            ),
+            "series_id": ["ib_2024_02", "ib_2024_03", "ib_2026_09", "ib_2026_10"],
+            "value": [100.0 - hike_priced, 95.30, 95.645, 95.425],
+        }
+    )
+    monkeypatch.setattr(ib, "fetch", lambda *, force_download=True: curve)
+    frame = pd.DataFrame(
+        {
+            "meeting_date": pd.to_datetime(["2024-02-06", "2026-09-29"]),
+            "prior_rate_pct": [4.35, 4.35],
+        }
+    )
+    out = holdout.attach_market_implied(frame)
+    assert out["asx_30d_implied_rate"].tolist() == pytest.approx([4.60, 4.575])
+
+
+def test_attach_market_implied_requires_prior_rate() -> None:
+    frame = _meeting_frame().drop(columns=["prior_rate_pct"])
+    with pytest.raises(ValueError, match="prior_rate_pct"):
+        holdout.attach_market_implied(frame)

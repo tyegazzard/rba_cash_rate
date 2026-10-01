@@ -102,9 +102,9 @@ Output schema
   expiry month YYYY-MM-01.
 - ``value`` (float64) — settlement price, computed as
   ``100 - upstream_cash_rate`` to keep the raw cache faithful to the
-  exchange-traded settlement convention. The implied rate is recovered
-  trivially as ``100 - value`` and is what
-  :func:`derive_meeting_implied` returns.
+  exchange-traded settlement convention. A contract's implied rate is
+  recovered trivially as ``100 - value``; :func:`derive_meeting_implied`
+  turns it into the implied post-meeting rate for each meeting.
 
 Running this module as ``__main__`` also materialises a wide-format CSV
 at ``data/external/asx_ib_futures.csv`` keyed by ``trade_date`` with
@@ -366,40 +366,124 @@ def _write_manifest(dest_dir: Path, manifest: list[dict[str, object]]) -> None:
 # Meeting-implied rate derivation
 # ---------------------------------------------------------------------------
 
+#: ``method`` value: the meeting-month contract, day-weight unwound.
+METHOD_DAY_WEIGHTED = "day_weighted"
+#: ``method`` value: the following month's contract, read directly.
+METHOD_NEXT_MONTH = "next_month"
+
+_IMPLIED_COLUMNS = [
+    "meeting_date",
+    "lookup_date",
+    "contract_series_id",
+    "method",
+    "contract_rate",
+    "implied_cash_rate",
+]
+
+
+@dataclass(frozen=True)
+class _ContractChoice:
+    """The contract that prices one meeting, and how to read it."""
+
+    contract: AsxIbContract
+    method: str
+    days_in_month: int
+    days_before: int
+    days_after: int
+
+
+def _choose_contract(
+    meeting_date: pd.Timestamp,
+    *,
+    min_post_meeting_share: float,
+) -> _ContractChoice:
+    """Pick the contract that prices ``meeting_date`` and the rule to read it with.
+
+    A decision announced on the meeting date takes effect the following day, so
+    within the meeting month days ``1..meeting_day`` settle at the pre-meeting
+    rate and the remaining ``days_after`` settle at the post-meeting rate. A
+    meeting on the last day of the month leaves ``days_after == 0``.
+    """
+    days_in_month = int(meeting_date.days_in_month)
+    days_before = int(meeting_date.day)
+    days_after = days_in_month - days_before
+    month_start = meeting_date.normalize().replace(day=1)
+
+    if days_after / days_in_month >= min_post_meeting_share:
+        expiry, method = month_start, METHOD_DAY_WEIGHTED
+    else:
+        expiry, method = month_start + pd.offsets.MonthBegin(1), METHOD_NEXT_MONTH
+    return _ContractChoice(
+        contract=AsxIbContract.from_expiry_month(expiry),
+        method=method,
+        days_in_month=days_in_month,
+        days_before=days_before,
+        days_after=days_after,
+    )
+
+
+def _post_meeting_rate(contract_rate: float, prior_rate: float, choice: _ContractChoice) -> float:
+    """Turn a contract's implied rate into the implied post-meeting rate.
+
+    The next-month contract sits wholly after the decision, so its rate is the
+    answer. The meeting-month contract is a day-weighted average of the pre- and
+    post-meeting rates, which is solved for the post-meeting rate. A NaN
+    ``prior_rate`` propagates: the average cannot be unwound without it.
+    """
+    if choice.method == METHOD_NEXT_MONTH:
+        return contract_rate
+    weighted_sum = choice.days_in_month * contract_rate - choice.days_before * prior_rate
+    return weighted_sum / choice.days_after
+
 
 def derive_meeting_implied(
     long_df: pd.DataFrame,
     meetings_df: pd.DataFrame,
     *,
     lookback_business_days: int = 1,
+    min_post_meeting_share: float = 0.5,
 ) -> pd.DataFrame:
-    """Derive the market-implied cash rate per RBA meeting from the IB curve.
+    """Derive the market-implied **post-meeting** cash rate per RBA meeting.
 
     For each meeting ``M``, look up the implied curve as of ``M -
     lookback_business_days`` (i.e. the trading day strictly before the
-    meeting), pick the contract whose expiry month equals the meeting
-    month, and report ``100 - settlement_price`` as the implied cash
-    rate for that meeting.
+    meeting), pick the contract that prices the decision, and report the
+    cash rate the market expects to prevail after it.
 
-    Why the "meeting month" contract?
-    ---------------------------------
-    The IB futures contract settles to the *average* daily cash rate
-    over the contract month. For a meeting on date M in month ``X``,
-    the X contract's settlement reflects the weighted mix of (i) the
-    cash rate prevailing pre-meeting (days 1 through M-1 of month X)
-    and (ii) the post-meeting rate (days M through end-of-month X).
-    The naïve "implied rate = 100 - settlement_price" therefore
-    *averages* the pre- and post-meeting rates rather than isolating
-    the post-meeting rate.
+    Which contract, and why
+    -----------------------
+    An IB contract settles to the *average* daily cash rate over its
+    contract month, and a decision announced on ``M`` takes effect the
+    next day. The meeting-month contract therefore mixes two rates: days
+    ``1..M`` at the pre-meeting rate and the remaining days at the
+    post-meeting rate. How much of the decision it carries depends on
+    where in the month the meeting falls, so the rule is chosen by the
+    share of the month that falls after the decision takes effect:
 
-    This helper returns the **naïve** implied rate (``100 -
-    settlement_price``) for the meeting-month contract, which is the
-    simplest and most-cited market baseline. The pre/post-meeting day-
-    weighting decomposition — i.e. solving for the implied post-
-    meeting rate given the pre-meeting rate and the contract
-    settlement — is a downstream feature transform and is intentionally
-    not done here. Adding it as a separate helper later is a backwards-
-    compatible extension.
+    - **Share >= ``min_post_meeting_share``** (meeting in the first half
+      of the month by default): read the meeting-month contract and
+      unwind the average (:data:`METHOD_DAY_WEIGHTED`)::
+
+          post = (days_in_month * contract_rate - days_before * prior_rate) / days_after
+
+    - **Share below the threshold** (second half of the month): read the
+      *following* month's contract directly (:data:`METHOD_NEXT_MONTH`).
+      That month sits wholly after the decision, whereas the unwinding
+      would divide by a handful of days and magnify the half-basis-point
+      price tick into noise. A meeting on the 29th of a 30-day month
+      moves its own contract by under one tick even when a 25 bp move is
+      fully priced.
+
+    Known approximations
+    --------------------
+    - ``prior_rate_pct`` is the cash rate *target*, while contracts settle
+      on the *traded* interbank rate, which has sat a few basis points
+      from target. The unwinding scales that basis by at most
+      ``1 / min_post_meeting_share``.
+    - The next-month contract also prices any meeting held within that
+      month. Board meetings are at least five weeks apart, so a
+      second-half meeting is never followed by one early in the next
+      month and the overlap is at most the last days of the contract.
 
     Parameters
     ----------
@@ -407,42 +491,62 @@ def derive_meeting_implied(
         Output of :func:`fetch` (or an in-memory equivalent). Must
         contain ``observation_date``, ``series_id``, ``value`` columns.
     meetings_df
-        Meeting frame. Must contain an ``observation_date`` column
-        holding the meeting effective dates. Output of
-        ``rba.data.sources.rba_f11.fetch`` works directly.
+        Meeting frame. Must contain ``observation_date`` (the meeting
+        announcement date) and ``prior_rate_pct`` (the cash rate target
+        going into the meeting, percent).
     lookback_business_days
         Number of business days strictly before the meeting to use as
         the lookup date. Default ``1`` ensures the curve used was
         publicly known before the meeting starts (no leakage).
+    min_post_meeting_share
+        Minimum share of the meeting month that must fall after the
+        decision takes effect for the meeting-month contract to be used.
+        Must lie in ``(0, 1]``. Default ``0.5``.
 
     Returns
     -------
     pandas.DataFrame
         Columns: ``meeting_date`` (datetime64[ns]) — input meeting
         date; ``lookup_date`` (datetime64[ns]) — the trade date the
-        implied rate was read from; ``contract_series_id`` (object) —
-        the ``ib_YYYY_MM`` matched to the meeting month; and
-        ``implied_cash_rate`` (float64) — ``100 -
-        settlement_price`` from the lookup-date / contract cell.
+        curve was read from; ``contract_series_id`` (object) — the
+        ``ib_YYYY_MM`` contract read; ``method`` (object) —
+        :data:`METHOD_DAY_WEIGHTED` or :data:`METHOD_NEXT_MONTH`;
+        ``contract_rate`` (float64) — ``100 - settlement_price`` of that
+        contract; and ``implied_cash_rate`` (float64) — the implied
+        post-meeting cash rate.
 
         Meetings for which no observation exists within a 7-business-
-        day fallback window before the meeting (or the meeting-month
-        contract is not quoted on that day) yield NaN in the rate and
-        NaT in the lookup_date.
+        day fallback window before the meeting (or the chosen contract
+        is not quoted on that day) yield NaN in both rates and NaT in
+        the lookup_date. A day-weighted meeting with a NaN
+        ``prior_rate_pct`` keeps its ``contract_rate`` but yields a NaN
+        ``implied_cash_rate``.
+
+    Raises
+    ------
+    ValueError
+        If a required column is missing from either frame, or
+        ``min_post_meeting_share`` is outside ``(0, 1]``.
 
     Shapes
     ------
-    Returns: (n_meetings, 4).
+    Returns: (n_meetings, 6).
     """
-    if "observation_date" not in meetings_df.columns:
+    missing_meeting = {"observation_date", "prior_rate_pct"} - set(meetings_df.columns)
+    if missing_meeting:
         raise ValueError(
-            "meetings_df must contain an 'observation_date' column "
-            "(use rba.data.sources.rba_f11.fetch())."
+            f"meetings_df missing column(s): {sorted(missing_meeting)}. It must carry "
+            "'observation_date' (the meeting date) and 'prior_rate_pct' (the cash rate "
+            "target going into the meeting)."
         )
     needed = {"observation_date", "series_id", "value"}
     missing = needed - set(long_df.columns)
     if missing:
         raise ValueError(f"long_df missing column(s): {sorted(missing)}")
+    if not 0.0 < min_post_meeting_share <= 1.0:
+        raise ValueError(
+            f"min_post_meeting_share must lie in (0, 1]; got {min_post_meeting_share!r}."
+        )
 
     available_trade_dates = pd.Index(sorted(long_df["observation_date"].unique()))
     by_trade = {
@@ -453,32 +557,41 @@ def derive_meeting_implied(
     bday = pd.tseries.offsets.BusinessDay()
     fallback_window = 7  # business days
 
+    meeting_dates = pd.to_datetime(meetings_df["observation_date"])
+    prior_rates = pd.to_numeric(meetings_df["prior_rate_pct"], errors="coerce")
+
     out_rows: list[dict[str, object]] = []
-    for meeting_date in pd.to_datetime(meetings_df["observation_date"]):
+    for meeting_date, prior_rate in zip(meeting_dates, prior_rates, strict=True):
         target = meeting_date - lookback_business_days * bday
         lookup_date = _latest_trade_date_on_or_before(
             target, available_trade_dates, max_lookback_bdays=fallback_window
         )
-        contract_id = f"ib_{meeting_date.year:04d}_{meeting_date.month:02d}"
+        choice = _choose_contract(meeting_date, min_post_meeting_share=min_post_meeting_share)
+        contract_id = choice.contract.series_id
 
-        implied: float | None = None
+        contract_rate = float("nan")
+        implied = float("nan")
         if lookup_date is not None:
-            curve = by_trade.get(lookup_date, {})
-            settlement = curve.get(contract_id)
+            settlement = by_trade.get(lookup_date, {}).get(contract_id)
             if settlement is not None:
-                implied = float(100.0 - settlement)
+                contract_rate = float(100.0 - settlement)
+                implied = _post_meeting_rate(contract_rate, float(prior_rate), choice)
 
         out_rows.append(
             {
                 "meeting_date": meeting_date,
                 "lookup_date": lookup_date if lookup_date is not None else pd.NaT,
                 "contract_series_id": contract_id,
-                "implied_cash_rate": implied if implied is not None else float("nan"),
+                "method": choice.method,
+                "contract_rate": contract_rate,
+                "implied_cash_rate": implied,
             }
         )
-    out = pd.DataFrame(out_rows)
+    out = pd.DataFrame(out_rows, columns=_IMPLIED_COLUMNS)
     out["meeting_date"] = pd.to_datetime(out["meeting_date"]).astype("datetime64[ns]")
     out["lookup_date"] = pd.to_datetime(out["lookup_date"]).astype("datetime64[ns]")
+    out["contract_rate"] = out["contract_rate"].astype(float)
+    out["implied_cash_rate"] = out["implied_cash_rate"].astype(float)
     return out
 
 

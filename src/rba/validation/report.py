@@ -806,15 +806,33 @@ def _taylor_section(suite: SuiteResult) -> str:
     return "\n".join(body)
 
 
+def _market_coverage_note(suite: SuiteResult) -> str:
+    """The limitations bullet on how many test meetings the futures curve covers."""
+    market = suite.market_predictions
+    if market is None or market.empty:
+        return "- **Market baseline** was not scored in this run.\n"
+    n_total = len(market)
+    n_missing = int(market["y_pred_market"].isna().sum())
+    if n_missing == 0:
+        return (
+            "- **Market baseline coverage** begins 2022-04 and reaches every one of the "
+            f"{n_total} test meetings.\n"
+        )
+    noun, verb = ("meeting has", "drops") if n_missing == 1 else ("meetings have", "drop")
+    return (
+        f"- **Market baseline coverage** begins 2022-04; {n_missing} of the {n_total} test "
+        f"{noun} no futures quote and {verb} from the paired hit-rate comparison.\n"
+    )
+
+
 def _limitations_section(suite: SuiteResult) -> str:
     return (
         "## Limitations & honest caveats\n\n"
         "- **Test window is small (N≈39) and idiosyncratic** — one hike→hold→cut cycle. "
         "Balanced-accuracy differences of a few points are within sampling noise; treat "
         "the ranking as indicative, not decisive.\n"
-        "- **Market baseline coverage** begins 2022-04, so ~1 test meeting has no "
-        "futures quote and drops from the paired hit-rate comparison.\n"
-        "- **Taylor-rule inputs are proxies**: `cpi_headline_yoy` is a trimmed-mean-CPI "
+        + _market_coverage_note(suite)
+        + "- **Taylor-rule inputs are proxies**: `cpi_headline_yoy` is a trimmed-mean-CPI "
         "year-over-year built from the meeting-aligned index, and `output_gap` is a "
         "negative unemployment gap (Okun-style) vs a rolling trend — not a true "
         "potential-output gap. The Taylor numbers are directional, not authoritative.\n"

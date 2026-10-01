@@ -1,0 +1,304 @@
+{
+  "run_id": "taylor_rule_level_regression_20260929T114400Z",
+  "model_name": "taylor_rule",
+  "target_name": "level_regression",
+  "task": "regression",
+  "n_folds": 39,
+  "n_samples_scored": 39,
+  "splitter_kwargs": {
+    "kind": "WalkForwardSplit",
+    "initial_train_size": 326,
+    "test_size": 1,
+    "step": 1,
+    "expanding": true,
+    "max_train_size": null
+  },
+  "metrics_overall": {
+    "rmse": 3.3714334977067764,
+    "mae": 2.316316710064754,
+    "r2": -10.458852417304177,
+    "directional_accuracy": 1.0
+  },
+  "metrics_per_fold": [
+    {
+      "fold_index": 0,
+      "rmse": 7.307154689132929,
+      "mae": 7.307154689132929,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 1,
+      "rmse": 6.39491445776555,
+      "mae": 6.39491445776555,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 2,
+      "rmse": 5.614666956871892,
+      "mae": 5.614666956871892,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 3,
+      "rmse": 7.26608728300465,
+      "mae": 7.26608728300465,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 4,
+      "rmse": 6.114473342656916,
+      "mae": 6.114473342656916,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 5,
+      "rmse": 5.486827800257599,
+      "mae": 5.486827800257599,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 6,
+      "rmse": 6.68809237830599,
+      "mae": 6.68809237830599,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 7,
+      "rmse": 5.425404718262712,
+      "mae": 5.425404718262712,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 8,
+      "rmse": 5.259792195269405,
+      "mae": 5.259792195269405,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 9,
+      "rmse": 4.422875046009549,
+      "mae": 4.422875046009549,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 10,
+      "rmse": 4.171989727996088,
+      "mae": 4.171989727996088,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 11,
+      "rmse": 4.330549696599688,
+      "mae": 4.330549696599688,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 12,
+      "rmse": 2.7820425674608407,
+      "mae": 2.7820425674608407,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 13,
+      "rmse": 2.7769706100262006,
+      "mae": 2.7769706100262006,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 14,
+      "rmse": 3.0529091446118155,
+      "mae": 3.0529091446118155,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 15,
+      "rmse": 1.9734989118944526,
+      "mae": 1.9734989118944526,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 16,
+      "rmse": 1.9278739655182688,
+      "mae": 1.9278739655182688,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 17,
+      "rmse": 1.5188185770456961,
+      "mae": 1.5188185770456961,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 18,
+      "rmse": 1.1721073901464667,
+      "mae": 1.1721073901464667,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 19,
+      "rmse": 1.148932205943324,
+      "mae": 1.148932205943324,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 20,
+      "rmse": 0.390933632177477,
+      "mae": 0.390933632177477,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 21,
+      "rmse": 0.56982171851738,
+      "mae": 0.56982171851738,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 22,
+      "rmse": 0.3107889307340219,
+      "mae": 0.3107889307340219,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 23,
+      "rmse": 0.3369501043507874,
+      "mae": 0.3369501043507874,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 24,
+      "rmse": 0.19159718555271965,
+      "mae": 0.19159718555271965,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 25,
+      "rmse": 0.5555212142618693,
+      "mae": 0.5555212142618693,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 26,
+      "rmse": 0.05532719434827538,
+      "mae": 0.05532719434827538,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 27,
+      "rmse": 0.2946225843814272,
+      "mae": 0.2946225843814272,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 28,
+      "rmse": 0.1723639127100718,
+      "mae": 0.1723639127100718,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 29,
+      "rmse": 0.32930604939594277,
+      "mae": 0.32930604939594277,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 30,
+      "rmse": 0.2555613179692311,
+      "mae": 0.2555613179692311,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 31,
+      "rmse": 0.10414549731873901,
+      "mae": 0.10414549731873901,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 32,
+      "rmse": 0.1750076367738851,
+      "mae": 0.1750076367738851,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 33,
+      "rmse": 0.2020356198423876,
+      "mae": 0.2020356198423876,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 34,
+      "rmse": 0.1010282131546254,
+      "mae": 0.1010282131546254,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 35,
+      "rmse": 0.39969787962416925,
+      "mae": 0.39969787962416925,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 36,
+      "rmse": 0.003329114904035535,
+      "mae": 0.003329114904035535,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 37,
+      "rmse": 0.2751141650641502,
+      "mae": 0.2751141650641502,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    },
+    {
+      "fold_index": 38,
+      "rmse": 0.7772180566641866,
+      "mae": 0.7772180566641866,
+      "r2": NaN,
+      "directional_accuracy": 1.0
+    }
+  ],
+  "hit_rate_vs_market_result": null,
+  "manifest_path": "C:\\Users\\User\\dev\\ML\\rba_cash_rate\\reports\\runs\\taylor_rule_level_regression_20260929T114400Z\\manifest.json",
+  "predictions_path": "C:\\Users\\User\\dev\\ML\\rba_cash_rate\\reports\\runs\\taylor_rule_level_regression_20260929T114400Z\\predictions.parquet",
+  "calibration_path": null,
+  "git_commit": "99f5c6b1bba855b4a26eafa9d457290925c9a3d8",
+  "timestamp_utc": "2026-09-29T11:44:00+00:00",
+  "mlflow_status": "not_attempted"
+}

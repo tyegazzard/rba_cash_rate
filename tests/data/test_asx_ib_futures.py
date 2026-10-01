@@ -16,6 +16,8 @@ import pytest
 
 from rba.data.sources.asx_ib_futures import (
     _UPSTREAM_COVERAGE_START,
+    METHOD_DAY_WEIGHTED,
+    METHOD_NEXT_MONTH,
     AsxIbContract,
     _attach_publication_dates,
     _latest_trade_date_on_or_before,
@@ -198,26 +200,135 @@ def _curve_long(trade_date: str, contract_to_settlement: dict[str, float]) -> pd
     )
 
 
-def test_derive_meeting_implied_matches_meeting_month_contract() -> None:
-    """For a meeting on Tue 2024-02-06, look up the curve as of Mon
-    2024-02-05 (1 business day prior) and pick the ib_2024_02 contract.
-    Settlement 95.65 → implied 100 - 95.65 = 4.35."""
+def _meetings(dates: list[str], prior_rates: list[float]) -> pd.DataFrame:
+    return pd.DataFrame({"observation_date": pd.to_datetime(dates), "prior_rate_pct": prior_rates})
+
+
+def test_derive_meeting_implied_first_half_unwinds_meeting_month_contract() -> None:
+    """Meeting Tue 2024-02-06: 6 of February's 29 days settle at the old rate
+    and 23 at the new one, so the meeting-month contract is read and unwound.
+
+    A fully priced 25 bp hike from 4.35 puts the contract at
+    (6 * 4.35 + 23 * 4.60) / 29 = 4.548; unwinding must recover 4.60."""
+    contract_rate = (6 * 4.35 + 23 * 4.60) / 29
     curve = _curve_long(
         "2024-02-05",
         {
-            "ib_2024_02": 95.65,  # implied 4.35
-            "ib_2024_03": 95.70,
-            "ib_2024_04": 95.90,
+            "ib_2024_02": 100.0 - contract_rate,
+            "ib_2024_03": 95.30,  # must NOT be read for a first-half meeting
+            "ib_2024_04": 95.20,
         },
     )
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06"])})
-    out = derive_meeting_implied(curve, meetings)
+    out = derive_meeting_implied(curve, _meetings(["2024-02-06"], [4.35]))
     assert len(out) == 1
     row = out.iloc[0]
     assert row["meeting_date"] == pd.Timestamp("2024-02-06")
     assert row["lookup_date"] == pd.Timestamp("2024-02-05")
     assert row["contract_series_id"] == "ib_2024_02"
+    assert row["method"] == METHOD_DAY_WEIGHTED
+    assert row["contract_rate"] == pytest.approx(contract_rate)
+    assert row["implied_cash_rate"] == pytest.approx(4.60)
+
+
+def test_derive_meeting_implied_unwinding_is_identity_when_no_move_priced() -> None:
+    """A contract sitting at the pre-meeting rate implies that same rate after."""
+    curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65})  # implied 4.35
+    out = derive_meeting_implied(curve, _meetings(["2024-02-06"], [4.35]))
+    assert out.iloc[0]["implied_cash_rate"] == pytest.approx(4.35)
+
+
+def test_derive_meeting_implied_unwinds_a_priced_cut() -> None:
+    """Meeting Tue 2025-08-12: 12 of August's 31 days at 3.85, 19 at 3.60."""
+    contract_rate = (12 * 3.85 + 19 * 3.60) / 31
+    curve = _curve_long("2025-08-11", {"ib_2025_08": 100.0 - contract_rate})
+    out = derive_meeting_implied(curve, _meetings(["2025-08-12"], [3.85]))
+    row = out.iloc[0]
+    assert row["method"] == METHOD_DAY_WEIGHTED
+    assert row["implied_cash_rate"] == pytest.approx(3.60)
+
+
+def test_derive_meeting_implied_second_half_reads_next_month_contract() -> None:
+    """Regression for the Tue 2026-09-29 meeting, which the market priced as a hike.
+
+    The decision takes effect on 30 September, so the September contract holds
+    29 days at the old rate and barely moves (4.355 against a 4.35 cash rate).
+    The October contract sits wholly after the decision and carries the move."""
+    curve = _curve_long(
+        "2026-09-28",
+        {
+            "ib_2026_09": 95.645,  # implied 4.355; must NOT be read
+            "ib_2026_10": 95.425,  # implied 4.575
+            "ib_2026_11": 95.305,
+        },
+    )
+    out = derive_meeting_implied(curve, _meetings(["2026-09-29"], [4.35]))
+    row = out.iloc[0]
+    assert row["lookup_date"] == pd.Timestamp("2026-09-28")
+    assert row["contract_series_id"] == "ib_2026_10"
+    assert row["method"] == METHOD_NEXT_MONTH
+    assert row["contract_rate"] == pytest.approx(4.575)
+    assert row["implied_cash_rate"] == pytest.approx(4.575)
+
+
+def test_derive_meeting_implied_month_end_meeting_has_no_post_meeting_days() -> None:
+    """Meeting Tue 2025-09-30 takes effect on 1 October, leaving zero
+    post-decision days in September: the next contract is read and nothing
+    divides by zero."""
+    curve = _curve_long("2025-09-29", {"ib_2025_09": 96.40, "ib_2025_10": 96.45})
+    out = derive_meeting_implied(curve, _meetings(["2025-09-30"], [3.60]))
+    row = out.iloc[0]
+    assert row["contract_series_id"] == "ib_2025_10"
+    assert row["method"] == METHOD_NEXT_MONTH
+    assert row["implied_cash_rate"] == pytest.approx(3.55)
+
+
+def test_derive_meeting_implied_second_half_december_rolls_into_january() -> None:
+    """The next-month contract crosses the year boundary."""
+    curve = _curve_long("2025-12-15", {"ib_2025_12": 96.40, "ib_2026_01": 96.15})
+    out = derive_meeting_implied(curve, _meetings(["2025-12-16"], [3.60]))
+    row = out.iloc[0]
+    assert row["contract_series_id"] == "ib_2026_01"
+    assert row["method"] == METHOD_NEXT_MONTH
+    assert row["implied_cash_rate"] == pytest.approx(3.85)
+
+
+@pytest.mark.parametrize(
+    ("meeting", "expected_contract", "expected_method"),
+    [
+        # 30-day month: the 15th leaves 15 of 30 days after the decision (share 0.5).
+        ("2024-04-15", "ib_2024_04", METHOD_DAY_WEIGHTED),
+        ("2024-04-16", "ib_2024_05", METHOD_NEXT_MONTH),
+        # 31-day month: the 15th leaves 16 of 31 days, the 16th leaves 15.
+        ("2024-07-15", "ib_2024_07", METHOD_DAY_WEIGHTED),
+        ("2024-07-16", "ib_2024_08", METHOD_NEXT_MONTH),
+    ],
+)
+def test_derive_meeting_implied_switches_rule_at_half_the_month(
+    meeting: str, expected_contract: str, expected_method: str
+) -> None:
+    lookup = pd.Timestamp(meeting) - pd.tseries.offsets.BusinessDay()
+    curve = _curve_long(
+        lookup.strftime("%Y-%m-%d"),
+        {"ib_2024_04": 95.65, "ib_2024_05": 95.65, "ib_2024_07": 95.65, "ib_2024_08": 95.65},
+    )
+    out = derive_meeting_implied(curve, _meetings([meeting], [4.35]))
+    row = out.iloc[0]
+    assert row["contract_series_id"] == expected_contract
+    assert row["method"] == expected_method
     assert row["implied_cash_rate"] == pytest.approx(4.35)
+
+
+def test_derive_meeting_implied_custom_share_threshold_moves_the_switch() -> None:
+    """2024-02-06 leaves 23 of 29 days (share 0.79) after the decision: a 0.9
+    threshold pushes it onto the next-month contract."""
+    curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65, "ib_2024_03": 95.40})
+    out = derive_meeting_implied(
+        curve, _meetings(["2024-02-06"], [4.35]), min_post_meeting_share=0.9
+    )
+    row = out.iloc[0]
+    assert row["contract_series_id"] == "ib_2024_03"
+    assert row["method"] == METHOD_NEXT_MONTH
+    assert row["implied_cash_rate"] == pytest.approx(4.60)
 
 
 def test_derive_meeting_implied_walks_back_on_holiday_gap() -> None:
@@ -226,23 +337,32 @@ def test_derive_meeting_implied_walks_back_on_holiday_gap() -> None:
     # Curve only has Friday 2024-02-02; meeting Mon 2024-02-05.
     # T-1 business day = Fri 2024-02-02 → resolves on first try.
     curve = _curve_long("2024-02-02", {"ib_2024_02": 95.50})
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-05"])})
-    out = derive_meeting_implied(curve, meetings)
+    out = derive_meeting_implied(curve, _meetings(["2024-02-05"], [4.50]))
     assert out.iloc[0]["lookup_date"] == pd.Timestamp("2024-02-02")
     assert out.iloc[0]["implied_cash_rate"] == pytest.approx(4.50)
 
 
 def test_derive_meeting_implied_returns_nan_when_contract_not_quoted() -> None:
-    """If the meeting-month contract isn't on the curve that day, return NaN."""
+    """If the chosen contract isn't on the curve that day, return NaN."""
     curve = _curve_long(
         "2024-02-05",
         {"ib_2024_03": 95.70, "ib_2024_04": 95.90},  # no ib_2024_02
     )
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06"])})
-    out = derive_meeting_implied(curve, meetings)
+    out = derive_meeting_implied(curve, _meetings(["2024-02-06"], [4.35]))
     row = out.iloc[0]
     assert row["lookup_date"] == pd.Timestamp("2024-02-05")
     assert row["contract_series_id"] == "ib_2024_02"
+    assert pd.isna(row["contract_rate"])
+    assert pd.isna(row["implied_cash_rate"])
+
+
+def test_derive_meeting_implied_returns_nan_when_next_month_contract_not_quoted() -> None:
+    """A second-half meeting never falls back to its own month's contract."""
+    curve = _curve_long("2026-09-28", {"ib_2026_09": 95.645})  # no ib_2026_10
+    out = derive_meeting_implied(curve, _meetings(["2026-09-29"], [4.35]))
+    row = out.iloc[0]
+    assert row["contract_series_id"] == "ib_2026_10"
+    assert pd.isna(row["contract_rate"])
     assert pd.isna(row["implied_cash_rate"])
 
 
@@ -250,11 +370,28 @@ def test_derive_meeting_implied_returns_nan_when_meeting_predates_coverage() -> 
     """Meetings before any available trade date yield NaT lookup and NaN rate."""
     curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65})
     # Meeting in 2020 — well before any curve data.
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2020-03-19"])})
-    out = derive_meeting_implied(curve, meetings)
+    out = derive_meeting_implied(curve, _meetings(["2020-03-19"], [0.50]))
     row = out.iloc[0]
     assert pd.isna(row["lookup_date"])
     assert pd.isna(row["implied_cash_rate"])
+
+
+def test_derive_meeting_implied_nan_prior_rate_blocks_only_the_unwinding() -> None:
+    """The day-weighted rule needs the pre-meeting rate; the next-month rule
+    does not."""
+    curve = pd.concat(
+        [
+            _curve_long("2024-02-05", {"ib_2024_02": 95.65}),
+            _curve_long("2026-09-28", {"ib_2026_10": 95.425}),
+        ],
+        ignore_index=True,
+    )
+    meetings = _meetings(["2024-02-06", "2026-09-29"], [float("nan"), float("nan")])
+    out = derive_meeting_implied(curve, meetings)
+    first_half, second_half = out.iloc[0], out.iloc[1]
+    assert first_half["contract_rate"] == pytest.approx(4.35)
+    assert pd.isna(first_half["implied_cash_rate"])
+    assert second_half["implied_cash_rate"] == pytest.approx(4.575)
 
 
 def test_derive_meeting_implied_no_future_leakage() -> None:
@@ -269,42 +406,76 @@ def test_derive_meeting_implied_no_future_leakage() -> None:
         ],
         ignore_index=True,
     )
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06"])})
-    out = derive_meeting_implied(curve, meetings)
+    out = derive_meeting_implied(curve, _meetings(["2024-02-06"], [4.35]))
     row = out.iloc[0]
     assert row["lookup_date"] == pd.Timestamp("2024-02-05")
     assert row["lookup_date"] < row["meeting_date"]
     # Confirms we used the T-1 settlement (4.35), not the same-day one (4.50).
+    assert row["contract_rate"] == pytest.approx(4.35)
     assert row["implied_cash_rate"] == pytest.approx(4.35)
 
 
 def test_derive_meeting_implied_raises_on_missing_meeting_column() -> None:
     curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65})
-    meetings = pd.DataFrame({"meeting_dt": pd.to_datetime(["2024-02-06"])})  # wrong col
+    meetings = pd.DataFrame(
+        {"meeting_dt": pd.to_datetime(["2024-02-06"]), "prior_rate_pct": [4.35]}
+    )  # wrong date col
     with pytest.raises(ValueError, match="observation_date"):
+        derive_meeting_implied(curve, meetings)
+
+
+def test_derive_meeting_implied_raises_on_missing_prior_rate_column() -> None:
+    curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65})
+    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06"])})
+    with pytest.raises(ValueError, match="prior_rate_pct"):
         derive_meeting_implied(curve, meetings)
 
 
 def test_derive_meeting_implied_raises_on_malformed_long_df() -> None:
     long_df = pd.DataFrame({"observation_date": [], "series_id": []})  # no value
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06"])})
     with pytest.raises(ValueError, match="long_df missing"):
-        derive_meeting_implied(long_df, meetings)
+        derive_meeting_implied(long_df, _meetings(["2024-02-06"], [4.35]))
+
+
+@pytest.mark.parametrize("share", [0.0, -0.1, 1.5])
+def test_derive_meeting_implied_raises_on_invalid_share(share: float) -> None:
+    curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65})
+    with pytest.raises(ValueError, match="min_post_meeting_share"):
+        derive_meeting_implied(
+            curve, _meetings(["2024-02-06"], [4.35]), min_post_meeting_share=share
+        )
+
+
+def test_derive_meeting_implied_empty_meetings_returns_empty_frame() -> None:
+    curve = _curve_long("2024-02-05", {"ib_2024_02": 95.65})
+    out = derive_meeting_implied(curve, _meetings([], []))
+    assert out.empty
+    assert list(out.columns) == [
+        "meeting_date",
+        "lookup_date",
+        "contract_series_id",
+        "method",
+        "contract_rate",
+        "implied_cash_rate",
+    ]
 
 
 def test_derive_meeting_implied_multiple_meetings() -> None:
+    """Each meeting gets its own rule: a first-half February meeting and a
+    second-half March one."""
     curve = pd.concat(
         [
             _curve_long("2024-02-05", {"ib_2024_02": 95.65, "ib_2024_03": 95.70}),
-            _curve_long("2024-03-04", {"ib_2024_03": 95.80, "ib_2024_04": 95.90}),
+            _curve_long("2024-03-18", {"ib_2024_03": 95.80, "ib_2024_04": 95.90}),
         ],
         ignore_index=True,
     )
-    meetings = pd.DataFrame({"observation_date": pd.to_datetime(["2024-02-06", "2024-03-05"])})
-    out = derive_meeting_implied(curve, meetings)
+    out = derive_meeting_implied(curve, _meetings(["2024-02-06", "2024-03-19"], [4.35, 4.35]))
     assert len(out) == 2
-    assert out.iloc[0]["implied_cash_rate"] == pytest.approx(4.35)  # 100 - 95.65
-    assert out.iloc[1]["implied_cash_rate"] == pytest.approx(4.20)  # 100 - 95.80
+    assert list(out["method"]) == [METHOD_DAY_WEIGHTED, METHOD_NEXT_MONTH]
+    assert list(out["contract_series_id"]) == ["ib_2024_02", "ib_2024_04"]
+    assert out.iloc[0]["implied_cash_rate"] == pytest.approx(4.35)  # 100 - 95.65, unwound
+    assert out.iloc[1]["implied_cash_rate"] == pytest.approx(4.10)  # 100 - 95.90
 
 
 # -----------------------------------------------------------------------------

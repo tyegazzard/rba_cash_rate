@@ -91,11 +91,12 @@ inflation/output-gap features are wired in.
 
 ### `MarketImplied` — the hardest floor
 
-Reads the ASX 30-day IB-futures implied cash rate (naïve
-`100 − settlement_price` of the meeting-month contract at T−1, per
-[`derive_meeting_implied`](../src/rba/data/sources/asx_ib_futures.py)) and
-maps `Δ = implied_rate − current_rate` to hike/hold/cut via the single-move
-linear decomposition (`P(hike) = clip(Δ / 25 bp, 0, 1)`, etc.).
+Reads the ASX 30-day IB-futures implied post-meeting cash rate at T−1, per
+[`derive_meeting_implied`](../src/rba/data/sources/asx_ib_futures.py): the
+meeting-month contract with its monthly average unwound when the meeting
+falls in the first half of its month, otherwise the following month's
+contract. It then maps `Δ = implied_rate − current_rate` to hike/hold/cut via
+the single-move linear decomposition (`P(hike) = clip(Δ / 25 bp, 0, 1)`, etc.).
 
 **Coverage caveat**: ASX IB-futures data begins 2022-04-21, so this baseline
 is only evaluable on the **post-2022 window: 39 meetings** (of which 20 hold /

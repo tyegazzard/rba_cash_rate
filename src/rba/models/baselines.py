@@ -348,9 +348,10 @@ class TaylorRule(BaseModel):
 class MarketImplied(BaseModel):
     """Market-implied 3-class baseline from ASX 30-day interbank cash-rate futures.
 
-    Reads the market-implied cash rate (naïve `100 − settlement_price` of the
-    meeting-month contract as of T−1, per
-    :func:`rba.data.sources.asx_ib_futures.derive_meeting_implied`) and the
+    Reads the market-implied post-meeting cash rate (as of T−1, per
+    :func:`rba.data.sources.asx_ib_futures.derive_meeting_implied`, which
+    day-weight unwinds the meeting-month contract for a first-half meeting and
+    reads the following month's contract for a second-half one) and the
     current cash rate directly from ``X``, computes
     ``Δ = implied_rate − current_rate`` (percentage points), and maps that gap
     to a hike/hold/cut probability via the standard single-move decomposition:
@@ -365,8 +366,8 @@ class MarketImplied(BaseModel):
     :meth:`predict` returns ``argmax``, so the decision boundary is at
     ``|Δ| = m/2`` — hold when ``|Δ| < 12.5 bp``, hike/cut when ``|Δ| ≥ 12.5 bp``.
     This is the "Rate Tracker"-style interpretation the ASX Rate Indicator page
-    uses, without the pre-/post-meeting day-weighting decomposition (which is a
-    downstream feature transform per the ``asx_ib_futures`` module docstring).
+    uses. The pre-/post-meeting day-weighting is applied upstream, when the
+    implied rate is derived, so ``Δ`` here is the full expected move.
 
     :meth:`_fit` is rule-based — no learning happens. It materialises
     :attr:`classes_` (sorted, sklearn-convention) from the constructor's three

@@ -1,6 +1,6 @@
 # RBA cash-rate prediction — §8 model evaluation (held-out test)
 
-_Generated 2026-07-18T00:41:22+00:00. Held-out test window: 39 meetings on/after `TEST_WINDOW_START` (cut=3 / hold=20 / hike=16)._
+_Generated 2026-09-29T11:44:02+00:00. Held-out test window: 39 meetings on/after `TEST_WINDOW_START` (cut=3 / hold=20 / hike=16)._
 
 ## Method
 
@@ -15,21 +15,21 @@ Ranked by **balanced accuracy (argmax)** — the robust primary metric. `bal_acc
 
 | model | kind | tuned | n | accuracy | balanced_accuracy | macro_f1 | log_loss | brier_score | bal_acc_tuned | market_lift |
 |---|---|---|---|---|---|---|---|---|---|---|
-| market_implied | baseline | False | 38 | 0.7895 | 0.6561 | 0.6777 | — | — | — | — |
-| lightgbm_classifier | model | True | 39 | 0.7436 | 0.6236 | 0.6687 | 1.2795 | 0.4779 | 0.6111 | -0.0526 |
-| ordinal_logistic | model | True | 39 | 0.7179 | 0.6069 | 0.612 | 3.1534 | 0.5671 | 0.6028 | -0.0526 |
-| svm_classifier | model | True | 39 | 0.6923 | 0.5903 | 0.5937 | 0.736 | 0.4167 | 0.4653 | -0.0789 |
-| logistic_regression | model | True | 39 | 0.641 | 0.5569 | 0.5569 | 1.7794 | 0.6159 | 0.5903 | -0.1316 |
-| voting_ensemble | ensemble | False | 39 | 0.641 | 0.5528 | 0.5706 | 0.9721 | 0.5037 | — | -0.1316 |
-| xgboost_classifier | model | True | 39 | 0.6154 | 0.5444 | 0.5379 | 0.8561 | 0.5307 | 0.625 | -0.1842 |
-| stacking_ensemble | ensemble | False | 39 | 0.5641 | 0.5153 | 0.475 | 1.7867 | 0.5729 | — | -0.2105 |
-| mlp_classifier | model | True | 39 | 0.5641 | 0.4861 | 0.5276 | 2.5054 | 0.7205 | 0.4778 | -0.2368 |
-| persistence | baseline | False | 39 | 0.641 | 0.4667 | 0.4667 | 12.9387 | 0.7179 | — | -0.1316 |
-| random_forest_classifier | model | True | 39 | 0.6154 | 0.4458 | 0.4271 | 0.8628 | 0.5386 | 0.3222 | -0.1842 |
-| majority_class | baseline | False | 39 | 0.5128 | 0.3333 | 0.226 | 1.2404 | 0.7361 | — | -0.2895 |
+| market_implied | baseline | False | 39 | 0.8974 | 0.9208 | 0.8862 | — | — | — | — |
+| lightgbm_classifier | model | True | 39 | 0.7436 | 0.6236 | 0.6687 | 1.2795 | 0.4779 | 0.6111 | -0.1538 |
+| ordinal_logistic | model | True | 39 | 0.7179 | 0.6069 | 0.612 | 3.1534 | 0.5671 | 0.6028 | -0.1795 |
+| svm_classifier | model | True | 39 | 0.6923 | 0.5903 | 0.5937 | 0.736 | 0.4167 | 0.4653 | -0.2051 |
+| logistic_regression | model | True | 39 | 0.641 | 0.5569 | 0.5569 | 1.7794 | 0.6159 | 0.5903 | -0.2564 |
+| voting_ensemble | ensemble | False | 39 | 0.641 | 0.5528 | 0.5706 | 0.9721 | 0.5037 | — | -0.2564 |
+| xgboost_classifier | model | True | 39 | 0.6154 | 0.5444 | 0.5379 | 0.8561 | 0.5307 | 0.625 | -0.2821 |
+| stacking_ensemble | ensemble | False | 39 | 0.5641 | 0.5153 | 0.475 | 1.7867 | 0.5729 | — | -0.3333 |
+| mlp_classifier | model | True | 39 | 0.5641 | 0.4861 | 0.5276 | 2.5054 | 0.7205 | 0.4778 | -0.3333 |
+| persistence | baseline | False | 39 | 0.641 | 0.4667 | 0.4667 | 12.9387 | 0.7179 | — | -0.2564 |
+| random_forest_classifier | model | True | 39 | 0.6154 | 0.4458 | 0.4271 | 0.8628 | 0.5386 | 0.3222 | -0.2821 |
+| majority_class | baseline | False | 39 | 0.5128 | 0.3333 | 0.226 | 1.2404 | 0.7361 | — | -0.3846 |
 
 
-**Key finding — the market-implied baseline (`market_implied`, balanced accuracy 0.6561) is the single best predictor on the test window; no learned model beats it (every `market_lift` is negative).** On a market as liquid and rate-tracked as the RBA cash rate, the 30-day futures price already impounds the macro signal the models are trying to learn — the honest result for a portfolio project, not a disappointment.
+**Key finding — the market-implied baseline (`market_implied`, balanced accuracy 0.9208) is the single best predictor on the test window; no learned model beats it (every `market_lift` is negative).** On a market as liquid and rate-tracked as the RBA cash rate, the 30-day futures price already impounds the macro signal the models are trying to learn — the honest result for a portfolio project, not a disappointment.
 
 
 **Best learned model: `lightgbm_classifier`** (balanced accuracy 0.624, tuned-threshold 0.611).
@@ -40,17 +40,17 @@ Paired on the meetings the ASX 30-day-futures curve covers (from 2022-04). `lift
 
 | model | n_compared | model_hit_rate | market_hit_rate | lift | only_model_correct | only_market_correct |
 |---|---|---|---|---|---|---|
-| lightgbm_classifier | 38 | 0.7368 | 0.7895 | -0.0526 | 0.1579 | 0.2105 |
-| ordinal_logistic | 38 | 0.7368 | 0.7895 | -0.0526 | 0.1053 | 0.1579 |
-| svm_classifier | 38 | 0.7105 | 0.7895 | -0.0789 | 0.1316 | 0.2105 |
-| persistence | 38 | 0.6579 | 0.7895 | -0.1316 | 0.0789 | 0.2105 |
-| voting_ensemble | 38 | 0.6579 | 0.7895 | -0.1316 | 0.1316 | 0.2632 |
-| logistic_regression | 38 | 0.6579 | 0.7895 | -0.1316 | 0.1316 | 0.2632 |
-| random_forest_classifier | 38 | 0.6053 | 0.7895 | -0.1842 | 0.1316 | 0.3158 |
-| xgboost_classifier | 38 | 0.6053 | 0.7895 | -0.1842 | 0.1579 | 0.3421 |
-| stacking_ensemble | 38 | 0.5789 | 0.7895 | -0.2105 | 0.1579 | 0.3684 |
-| mlp_classifier | 38 | 0.5526 | 0.7895 | -0.2368 | 0.1053 | 0.3421 |
-| majority_class | 38 | 0.5 | 0.7895 | -0.2895 | 0.0263 | 0.3158 |
+| lightgbm_classifier | 39 | 0.7436 | 0.8974 | -0.1538 | 0.0769 | 0.2308 |
+| ordinal_logistic | 39 | 0.7179 | 0.8974 | -0.1795 | 0.0513 | 0.2308 |
+| svm_classifier | 39 | 0.6923 | 0.8974 | -0.2051 | 0.0769 | 0.2821 |
+| persistence | 39 | 0.641 | 0.8974 | -0.2564 | 0.0256 | 0.2821 |
+| voting_ensemble | 39 | 0.641 | 0.8974 | -0.2564 | 0.0769 | 0.3333 |
+| logistic_regression | 39 | 0.641 | 0.8974 | -0.2564 | 0.0769 | 0.3333 |
+| random_forest_classifier | 39 | 0.6154 | 0.8974 | -0.2821 | 0.1026 | 0.3846 |
+| xgboost_classifier | 39 | 0.6154 | 0.8974 | -0.2821 | 0.0769 | 0.359 |
+| mlp_classifier | 39 | 0.5641 | 0.8974 | -0.3333 | 0.0513 | 0.3846 |
+| stacking_ensemble | 39 | 0.5641 | 0.8974 | -0.3333 | 0.1026 | 0.4359 |
+| majority_class | 39 | 0.5128 | 0.8974 | -0.3846 | 0.0256 | 0.4103 |
 
 ## Confusion matrices
 
@@ -77,9 +77,9 @@ Paired on the meetings the ASX 30-day-futures curve covers (from 2022-04). `lift
 
 | true \ pred | cut | hike | hold |
 |---|---|---|---|
-| **cut** | 1 | 0 | 2 |
-| **hike** | 0 | 11 | 5 |
-| **hold** | 1 | 0 | 18 |
+| **cut** | 3 | 0 | 0 |
+| **hike** | 0 | 13 | 3 |
+| **hold** | 1 | 0 | 19 |
 
 
 _Full per-model confusion matrices are in each run's `manifest.json` under `reports/runs/`._
@@ -158,8 +158,8 @@ Overall: accuracy 0.744, balanced accuracy 0.624, 10/39 meetings missed.
 
 | bucket | n | model_accuracy |
 |---|---|---|
-| market_expected | 30 | 0.7333 |
-| market_surprise | 8 | 0.75 |
+| market_expected | 35 | 0.7429 |
+| market_surprise | 4 | 0.75 |
 
 **Every missed meeting:**
 
@@ -188,7 +188,7 @@ The Taylor rule predicts a rate *level*, not a class, so it is scored on level-r
 ## Limitations & honest caveats
 
 - **Test window is small (N≈39) and idiosyncratic** — one hike→hold→cut cycle. Balanced-accuracy differences of a few points are within sampling noise; treat the ranking as indicative, not decisive.
-- **Market baseline coverage** begins 2022-04, so ~1 test meeting has no futures quote and drops from the paired hit-rate comparison.
+- **Market baseline coverage** begins 2022-04 and reaches every one of the 39 test meetings.
 - **Taylor-rule inputs are proxies**: `cpi_headline_yoy` is a trimmed-mean-CPI year-over-year built from the meeting-aligned index, and `output_gap` is a negative unemployment gap (Okun-style) vs a rolling trend — not a true potential-output gap. The Taylor numbers are directional, not authoritative.
 - **MLflow is upstream-blocked** on this stack (mlflow caps `pandas<3`; the project runs pandas 3). Local artifacts under `reports/` are the durable record; the registry write degraded gracefully (`import_failed:ImportError`).
 - **Vintage bias**: features use current-vintage macro data, not the exact real-time values the Board saw (see CONTEXT.md 'Vintage policy').

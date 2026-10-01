@@ -21,7 +21,7 @@ Pipeline
    than breaking LightGBM's column check.
 4. The persisted :class:`~rba.models.base.Model` predicts; the rule-based
    :class:`~rba.models.baselines.MarketImplied` baseline is scored alongside it
-   (graceful ``None`` when the meeting-month ASX futures contract isn't quoted).
+   (graceful ``None`` when the ASX futures contract pricing the meeting isn't quoted).
 
 Data freshness
 --------------
@@ -368,7 +368,9 @@ def _market_implied(future_row: pd.DataFrame) -> dict[str, Any] | None:
     Lazily imports :func:`rba.validation.holdout.attach_market_implied` — the one
     upward (``models → validation``) edge — so importing this module never loads
     ``rba.validation`` (no cycle). Returns ``None`` when the ASX futures curve does
-    not quote the meeting-month contract (the baseline raises on the NaN row).
+    not quote the contract that prices the meeting — its own month's for a
+    first-half meeting, the following month's for a second-half one (the baseline
+    raises on the NaN row).
     """
     try:
         from rba.models.baselines import MarketImplied
@@ -379,7 +381,10 @@ def _market_implied(future_row: pd.DataFrame) -> dict[str, Any] | None:
         framed = attach_market_implied(future_row.copy())
         implied = framed["asx_30d_implied_rate"].iloc[0]
         if pd.isna(implied):
-            logger.info("_market_implied: no futures coverage for this meeting month; skipping.")
+            logger.info(
+                "_market_implied: no futures quote for the contract pricing this meeting; "
+                "skipping."
+            )
             return None
         market = MarketImplied()
         market.fit(framed, pd.Series(["cut", "hold", "hike"]))
@@ -509,7 +514,7 @@ def _print_human(result: PredictionResult) -> None:
             f"  (implied {result.market_implied['implied_rate_pct']:.2f}%)"
         )
     else:
-        print("  Market-implied: unavailable (no futures quote for the meeting month)")
+        print("  Market-implied: unavailable (no futures quote for the contract pricing it)")
     if result.top_features:
         top = ", ".join(
             f"{f['feature']} ({f['importance_pct']:.1f}%)" for f in result.top_features[:5]

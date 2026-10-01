@@ -128,6 +128,36 @@ def test_write_results_md_has_all_sections(tmp_path) -> None:
     assert (tmp_path / "m.csv").exists()
 
 
+def test_market_coverage_note_counts_uncovered_meetings() -> None:
+    suite = _suite()
+    assert "not scored" in report._market_coverage_note(suite)
+
+    suite.market_predictions = pd.DataFrame(
+        {
+            "meeting_date": pd.date_range("2024-01-01", periods=3, freq="MS"),
+            "y_true": ["hold", "hike", "hold"],
+            "y_pred_market": np.array(["hold", "hike", "hold"], dtype=object),
+        }
+    )
+    assert "every one of the 3 test meetings" in report._market_coverage_note(suite)
+
+    suite.market_predictions.loc[2, "y_pred_market"] = np.nan
+    note = report._market_coverage_note(suite)
+    assert "1 of the 3 test meeting has no futures quote and drops" in note
+
+    suite.market_predictions.loc[1, "y_pred_market"] = np.nan
+    note = report._market_coverage_note(suite)
+    assert "2 of the 3 test meetings have no futures quote and drop " in note
+
+
+def test_limitations_section_carries_the_coverage_note() -> None:
+    suite = _suite()
+    text = report._limitations_section(suite)
+    assert "- **Market baseline** was not scored in this run." in text
+    assert "- **Taylor-rule inputs are proxies**" in text
+    assert "~1 test meeting" not in text
+
+
 # =============================================================================
 # Integration — compute path on a small synthetic frame.
 # =============================================================================
